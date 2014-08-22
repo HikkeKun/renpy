@@ -230,6 +230,10 @@ cleared.
     default. If None, the afm_enable preferences is ignored. (Auto-forward
     will occur when the auto-forward speed is non-zero.)
 
+.. var:: config.default_emphasize_audio = False
+
+    Controls the default state of the "emphasize audio" preference.
+
 .. var:: config.default_fullscreen = None
 
     This sets the default value of the fullscreen preference. This
@@ -304,7 +308,7 @@ Occasionally Used
 
     Ren'Py will scan through the list of files on disk and in
     archives. When it finds a file ending with .png or .jpg, it will
-    strip the extension, then break the name at separators, to creatge
+    strip the extension, then break the name at separators, to create
     an image name. If the name consists of at least two components,
     and no image with that name already is defined, Ren'Py will define
     that image to refer to a filename.
@@ -336,7 +340,7 @@ Occasionally Used
 .. var:: config.debug_sound = False
 
     Enables debugging of sound functionality. This disables the
-    supression of errors when generating sound. However, if a sound
+    suppression of errors when generating sound. However, if a sound
     card is missing or flawed, then such errors are normal, and
     enabling this may prevent Ren'Py from functioning normally. This
     should always be False in a released game.
@@ -357,6 +361,31 @@ Occasionally Used
     initialize the values of the displayable's transform.
 
     The default default transform is :var:`center`.
+
+.. var:: config.emphasize_audio_channels = [ 'voice' ]
+
+    A list of strings giving audio channel names.
+
+    If the "emphasize audio" preference is enabled, when one of the audio
+    channels listed starts playing a sound, all channels that are not
+    listed in this variable have their secondary audio volume reduced
+    to :var:`config.emphasize_audio_volume` over :var:`config.emphasize_audio_time`
+    seconds.
+
+    When no channels listed in this variable are playing audio, all channels
+    that are not listed have their secondary audio volume raised to 1.0 over
+    :var:`config.emphasize_audio_time` seconds.
+
+    For example, setting this to ``[ 'voice' ]]`` will lower the volume of all
+    non-voice channels when a voice is played.
+
+.. var:: config.emphasize_audio_time = 0.5
+
+    See above.
+
+.. var:: config.emphasize_audio_volume = 0.5
+
+    See above.
 
 .. var:: config.empty_window = ...
 
@@ -540,7 +569,7 @@ Occasionally Used
 
     The functions may be called during internal Ren'Py code, before the
     start of the game proper, and potentially before the variables the
-    function depends on are intialized. The functions are required to deal
+    function depends on are initialized. The functions are required to deal
     with this, perhaps by using ``hasattr(store, 'varname')`` to check if
     a variable is defined.
 
@@ -553,7 +582,7 @@ Occasionally Used
 .. var:: config.save_json_callbacks = [ ]
 
     A list of callback functions that are used to create the json object
-    that is stored with each save and maked accessible through :func:`FileJson`
+    that is stored with each save and marked accessible through :func:`FileJson`
     and :func:`renpy.slot_json`.
 
     Each callback is called with a python dictionary that will eventually be
@@ -603,6 +632,16 @@ Occasionally Used
 
 Rarely or Internally Used
 -------------------------
+
+.. var:: config.adjust_view_size = None
+
+    If not None, this should be a function taking two arguments, the width
+    and height of the physical window. It is expected to return a tuple
+    giving the width and height of the OpenGL viewport, the portion of the
+    screen that Ren'Py wil draw pictures to.
+
+    This can be used to configure Ren'Py to only allow certain sizes of
+    screen, such as integer multiples of the screen size.
 
 .. var:: config.afm_bonus = 25
 
@@ -667,6 +706,19 @@ Rarely or Internally Used
     Roughly, the number of interactions that will occur before an
     autosave occurs. To disable autosaving, set :var:`config.has_autosave` to
     False, don't change this variable.
+
+.. var:: config.autosave_on_choice = True
+
+    If true, Ren'Py will autosave upon encountering an in-game choice.
+    (When :func:`renpy.choice_for_skipping` is called.)
+
+.. var:: config.autosave_on_quit = True
+
+    If true, Ren'Py will attempt to autosave when the user attempts to quit,
+    return to the main menu, or load a game over the existing game. (To
+    save time, the autosave occurs while the user is being prompted to confirm
+    his or her decision.)
+
 
 .. var:: config.character_callback = None
 
@@ -1026,7 +1078,7 @@ Rarely or Internally Used
 
     The sample rate that the sound card will be run at. If all of your
     wav files are of a lower rate, changing this to that rate may make
-    things more efficent.
+    things more efficient.
 
 .. var:: config.start_callbacks = [ ... ]
 
@@ -1063,6 +1115,12 @@ Rarely or Internally Used
 
     If True, transforms will inherit :ref:`position properties
     <position-style-properties>` from their child. If not, they won't.
+
+.. var:: config.transition_screens = True
+
+    If true, screens will participate in transitions, dissolving from the
+    old state of the screen to the new state of the screen. If False, only
+    the latest state of the screen will be shown.
 
 .. var:: config.variants = [ ... ]
 

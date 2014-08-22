@@ -53,6 +53,7 @@ position_property_names = [
         "xsize",
         "ysize",
         "xysize",
+        "alt",
         ]
 
 position_properties = [ Style(i) for i in position_property_names ]
@@ -185,17 +186,17 @@ add(ui_properties)
 add(position_properties)
 add(text_properties)
 
-DisplayableParser("hbox", renpy.display.layout.MultiBox, "hbox", many)
+DisplayableParser("hbox", renpy.display.layout.MultiBox, "hbox", many, default_keywords={ 'layout' : 'horizontal' })
 add(ui_properties)
 add(position_properties)
 add(box_properties)
 
-DisplayableParser("vbox", renpy.display.layout.MultiBox, "vbox", many)
+DisplayableParser("vbox", renpy.display.layout.MultiBox, "vbox", many, default_keywords={ 'layout' : 'vertical' })
 add(ui_properties)
 add(position_properties)
 add(box_properties)
 
-DisplayableParser("fixed", renpy.display.layout.Fixed, "fixed", many)
+DisplayableParser("fixed", renpy.display.layout.MultiBox, "fixed", many, default_keywords={ 'layout' : 'fixed' })
 add(ui_properties)
 add(position_properties)
 add(box_properties)
@@ -385,16 +386,15 @@ def sl2viewport(**kwargs):
     sl.displayable can use.
     """
 
+    d = renpy.ui.detached()
     vp = renpy.ui.viewport(**kwargs)
+
     renpy.ui.stack.pop()
 
-    # Remove the side from the list of children. (It will be re-added later.)
-    d = renpy.ui.stack[-1].children.pop()
+    rv = d.child
+    rv._main = vp
 
-    # Make the viewport the main element.
-    d._main = vp
-
-    return d
+    return rv
 
 DisplayableParser("viewport", sl2viewport, "viewport", 1, replaces=True)
 Keyword("child_size")

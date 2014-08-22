@@ -19,7 +19,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import renpy.display
+import renpy
 
 import hashlib
 import re
@@ -68,6 +68,13 @@ class ScriptTranslator(object):
         # A map from filename to a list of additional strings we've found
         # in that file.
         self.additional_strings = collections.defaultdict(list)
+
+    def count_translates(self):
+        """
+        Return the number of dialogue blocks in the game.
+        """
+
+        return len(self.default_translates)
 
     def take_translates(self, nodes):
         """
@@ -480,9 +487,6 @@ def change_language(language):
 
     # Rebuild the styles.
     renpy.style.rebuild() # @UndefinedVariable
-
-    # Re-prepare the screens.
-    renpy.display.screen.prepare_screens()
 
     # Restart the interaction.
     renpy.exports.restart_interaction()

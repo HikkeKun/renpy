@@ -32,6 +32,8 @@ init python:
         the project root.
         """
 
+        alt = _("Open [text] directory.")
+
         def __init__(self, directory, absolute=False):
             if absolute:
                 self.directory = directory
@@ -62,6 +64,8 @@ init python:
 
 screen front_page:
     frame:
+        alt ""
+
         style_group "l"
         style "l_root"
 
@@ -143,6 +147,7 @@ screen front_page_project_list:
 
                 textbutton _("[p.name!q] (template)"):
                     action project.Select(p)
+                    alt _("Select project [text].")
                     style "l_list"
 
             null height 12
@@ -153,12 +158,13 @@ screen front_page_project_list:
 
                 textbutton "[p.name!q]":
                     action project.Select(p)
+                    alt _("Select project [text].")
                     style "l_list"
 
             null height 12
 
-        textbutton _("Tutorial") action project.Select("tutorial") style "l_list"
-        textbutton _("The Question") action project.Select("the_question") style "l_list"
+        textbutton _("Tutorial") action project.Select("tutorial") style "l_list" alt _("Select project [text].")
+        textbutton _("The Question") action project.Select("the_question") style "l_list" alt _("Select project [text].")
 
 
 # This is used for the right side of the screen, which is where the project-specific
@@ -225,6 +231,7 @@ screen front_page_project:
                 textbutton _("Check Script (Lint)") action Jump("lint")
                 textbutton _("Change Theme") action Jump("choose_theme")
                 textbutton _("Delete Persistent") action Jump("rmpersistent")
+                textbutton _("Force Recompile") action Jump("force_recompile")
 
                 # textbutton "Relaunch" action Relaunch
 
@@ -272,3 +279,10 @@ label rmpersistent:
 
     jump front_page
 
+label force_recompile:
+
+    python hide:
+        interface.processing(_("Recompiling all rpy files into rpyc files..."))
+        project.current.launch([ 'compile' ], wait=True)
+
+    jump front_page

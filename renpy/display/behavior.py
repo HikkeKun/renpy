@@ -307,10 +307,12 @@ def run_periodic(var, st):
     if isinstance(var, renpy.ui.Action):
         return var.periodic(st)
 
-
 def is_selected(clicked):
 
     if isinstance(clicked, (list, tuple)):
+        for i in clicked:
+            if isinstance(i, renpy.store.SelectedIf): # @UndefinedVariable
+                return i.get_selected()
         return any(is_selected(i) for i in clicked)
 
     elif isinstance(clicked, renpy.ui.Action):
@@ -322,6 +324,9 @@ def is_selected(clicked):
 def is_sensitive(clicked):
 
     if isinstance(clicked, (list, tuple)):
+        for i in clicked:
+            if isinstance(i, renpy.store.SensitiveIf): # @UndefinedVariable
+                return i.get_sensitive()
         return all(is_sensitive(i) for i in clicked)
 
     elif isinstance(clicked, renpy.ui.Action):
@@ -329,6 +334,25 @@ def is_sensitive(clicked):
     else:
         return True
 
+def alt(clicked):
+
+    if isinstance(clicked, (list, tuple)):
+        rv = [ ]
+
+        for i in clicked:
+            t = alt(i)
+            if t is not None:
+                rv.append(t)
+
+        if rv:
+            return " ".join(rv)
+        else:
+            return None
+
+    if isinstance(clicked, renpy.ui.Action):
+        return clicked.alt
+    else:
+        return None
 
 ##############################################################################
 # Special-Purpose Displayables
@@ -455,6 +479,9 @@ class SayBehavior(renpy.display.layout.Null):
 
         self.allow_dismiss = allow_dismiss
 
+    def _tts_all(self):
+        raise renpy.display.tts.TTSRoot()
+
     def set_afm_length(self, afm_length):
         self.afm_length = max(afm_length, 1)
 
@@ -539,10 +566,10 @@ class Button(renpy.display.layout.Window):
                  time_policy=None, keymap={}, alternate=None,
                  **properties):
 
-        super(Button, self).__init__(child, style=style, **properties)
-
         if isinstance(clicked, renpy.ui.Action):
             action = clicked
+
+        super(Button, self).__init__(child, style=style, **properties)
 
         self.action = action
         self.clicked = clicked
@@ -550,7 +577,7 @@ class Button(renpy.display.layout.Window):
         self.unhovered = unhovered
         self.alternate = alternate
 
-        self.focusable = clicked is not None
+        self.focusable = True #(clicked is not None) or (action is not None)
         self.role_parameter = role
         self.keymap = keymap
 
@@ -666,10 +693,12 @@ class Button(renpy.display.layout.Window):
             self.role = role
             self.clicked = clicked
 
-        if not self.clicked:
-            self.set_style_prefix(self.role + "insensitive_", True)
-        else:
+        if self.clicked is not None:
             self.set_style_prefix(self.role + "idle_", True)
+            self.focusable = True
+        else:
+            self.set_style_prefix(self.role + "insensitive_", True)
+            self.focusable = False
 
         super(Button, self).per_interact()
 
@@ -748,6 +777,11 @@ class Button(renpy.display.layout.Window):
         if root:
             super(Button, self).set_style_prefix(prefix, root)
 
+    def _tts(self):
+        return ""
+
+    def _tts_all(self):
+        return self._tts_common(alt(self.action))
 
 # Reimplementation of the TextButton widget as a Button and a Text
 # widget.
@@ -1216,6 +1250,7 @@ class Bar(renpy.display.core.Displayable):
                 self.value = value
                 adjustment = value.get_adjustment()
                 renpy.game.interface.timeout(0)
+
             else:
                 adjustment = Adjustment(range, value, step=step, page=page, changed=changed)
 
@@ -1425,6 +1460,7 @@ class Bar(renpy.display.core.Displayable):
         just_grabbed = False
 
         if not grabbed and map_event(ev, "bar_activate"):
+            renpy.display.tts.speak("activate")
             renpy.display.focus.set_grab(self)
             self.set_style_prefix("selected_hover_", True)
             just_grabbed = True
@@ -1440,9 +1476,11 @@ class Bar(renpy.display.core.Displayable):
                 decrease = "bar_left"
 
             if map_event(ev, decrease):
+                renpy.display.tts.speak("decrease")
                 value -= self.adjustment.step
 
             if map_event(ev, increase):
+                renpy.display.tts.speak("increase")
                 value += self.adjustment.step
 
             if ev.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP, pygame.MOUSEBUTTONDOWN):
@@ -1479,6 +1517,7 @@ class Bar(renpy.display.core.Displayable):
             value = range - value
 
         if grabbed and not just_grabbed and map_event(ev, "bar_deactivate"):
+            renpy.display.tts.speak("deactivate")
             self.set_style_prefix("hover_", True)
             renpy.display.focus.set_grab(None)
 
@@ -1486,6 +1525,18 @@ class Bar(renpy.display.core.Displayable):
             return self.adjustment.change(value)
 
         return None
+
+    def _tts(self):
+        return ""
+
+    def _tts_all(self):
+
+        if self.value is not None:
+            alt = self.value.alt
+        else:
+            alt = "Bar"
+
+        return self._tts_common(alt)
 
 
 class Conditional(renpy.display.layout.Container):

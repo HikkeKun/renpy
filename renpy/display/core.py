@@ -457,6 +457,50 @@ class Displayable(renpy.object.Object):
 
         return
 
+    def _in_old_scene(self):
+        """
+        Returns a version of this displayable that will not change as it is
+        rendered.
+        """
+
+        return self
+
+    def _tts_common(self, default_alt=None):
+
+        rv = [ ]
+
+        for i in self.visit():
+            if i is not None:
+                rv.append(i._tts())
+
+        rv = " ".join(rv)
+
+        alt = self.style.alt
+
+        if alt is None:
+            alt = default_alt
+
+        if alt is not None:
+            rv = renpy.substitutions.substitute(alt, scope={ "text" : rv })[0]
+
+        return rv
+
+    def _tts(self):
+        """
+        Returns the self-voicing text of this displayable and all of its
+        children that cannot take focus. If the displayable can take focus,
+        retuns the empty string.
+        """
+
+        return self._tts_common()
+
+
+    def _tts_all(self):
+        """
+        Returns the self-voicing text of this displayable and all of its
+        children that cannot take focus.
+        """
+        return self._tts_common()
 
 
 class SceneListEntry(renpy.object.Object):
@@ -1257,7 +1301,8 @@ class Interface(object):
         self.redraw_event = pygame.event.Event(REDRAW)
 
         # Are we focused?
-        self.focused = True
+        self.mouse_focused = True
+        self.keyboard_focused = True
 
         # Properties for each layer.
         self.layer_properties = { }
@@ -1437,6 +1482,10 @@ class Interface(object):
 
     def set_window_caption(self, force=False):
         caption = renpy.config.window_title + renpy.store._window_subtitle
+
+        if renpy.exports.get_autoreload():
+            caption += " - autoreload"
+
         if not force and caption == self.window_caption:
             return
 
@@ -1603,7 +1652,8 @@ class Interface(object):
         self.force_redraw = True
 
         # Assume we have focus until told otherwise.
-        self.focused = True
+        self.mouse_focused = True
+        self.keyboard_focused = True
 
         # Assume we're not minimized.
         self.minimized = False
@@ -1650,16 +1700,14 @@ class Interface(object):
             if not self.bgscreenshot_event.wait(1.0):
                 raise Exception("Screenshot timed out.")
 
-            window = self.bgscreenshot_surface
+            surf = self.bgscreenshot_surface
             self.bgscreenshot_surface = None
 
         else:
 
-            window = renpy.display.draw.screenshot(self.surftree, self.fullscreen_video)
+            surf = renpy.display.draw.screenshot(self.surftree, self.fullscreen_video)
 
-        surf = renpy.display.pgrender.copy_surface(window, True)
         surf = renpy.display.scale.smoothscale(surf, scale)
-        surf = surf.convert()
 
         renpy.display.render.mutated_surface(surf)
 
@@ -1941,7 +1989,7 @@ class Interface(object):
             return True, 0, 0, None
 
         # Deal with the mouse going offscreen.
-        if not self.focused:
+        if not self.mouse_focused:
             return False, 0, 0, None
 
         mouse_kind = renpy.display.focus.get_mouse() or self.mouse
@@ -2153,7 +2201,7 @@ class Interface(object):
                 continue
 
             self.ongoing_transition[k] = self.transition[k]
-            self.transition_from[k] = self.old_scene[k]
+            self.transition_from[k] = self.old_scene[k]._in_old_scene()
             self.transition_time[k] = None
 
         self.transition.clear()
@@ -2246,6 +2294,7 @@ class Interface(object):
 
         # Figure out the scene. (All of the layers, and the root.)
         scene = self.compute_scene(scene_lists)
+        renpy.display.tts.set_root(scene[None])
 
         # If necessary, load all images here.
         for w in scene.itervalues():
@@ -2442,15 +2491,20 @@ class Interface(object):
 
                         self.profile_once = False
 
-                    if first_pass and self.last_event:
-                        x, y = renpy.display.draw.get_mouse_pos()
-                        ev, x, y = renpy.display.emulator.emulator(self.last_event, x, y)
+                    if first_pass and self.last_event and self.last_event.type in [ pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION ]:
 
-                        if self.ignore_touch:
-                            x = -1
-                            y = -1
+                            x, y = renpy.display.draw.get_mouse_pos()
+                            ev, x, y = renpy.display.emulator.emulator(self.last_event, x, y)
 
-                        renpy.display.focus.mouse_handler(None, x, y, default=False)
+                            if self.ignore_touch:
+                                x = -1
+                                y = -1
+
+                            if renpy.android and self.last_event.type == pygame.MOUSEBUTTONUP:
+                                x = -1
+                                y = -1
+
+                            renpy.display.focus.mouse_handler(None, x, y, default=False)
 
                     needs_redraw = False
                     first_pass = False
@@ -2590,6 +2644,7 @@ class Interface(object):
                         renpy.config.periodic_callback()
 
                     renpy.audio.audio.periodic()
+                    renpy.display.tts.periodic()
                     continue
 
 
@@ -2631,7 +2686,7 @@ class Interface(object):
                         ev = evs[-1]
 
                     if renpy.windows:
-                        self.focused = True
+                        self.mouse_focused = True
 
                 # Handle mouse event time, and ignoring touch.
                 if ev.type == pygame.MOUSEMOTION or \
@@ -2645,8 +2700,12 @@ class Interface(object):
 
                 # Handle focus notifications.
                 if ev.type == pygame.ACTIVEEVENT:
+
                     if ev.state & 1:
-                        self.focused = ev.gain
+                        self.mouse_focused = ev.gain
+
+                    if ev.state & 2:
+                        self.keyboard_focused = ev.gain
 
                     if ev.state & 4:
                         if ev.gain:
@@ -2664,7 +2723,7 @@ class Interface(object):
                 if ev is None:
                     continue
 
-                if not self.focused or self.ignore_touch:
+                if not self.mouse_focused or self.ignore_touch:
                     x = -1
                     y = -1
 

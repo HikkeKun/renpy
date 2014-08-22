@@ -229,7 +229,7 @@ init -1500 python:
         offset = 0
 
         identity_fields = [ 'object' ]
-        equality_fields = [ 'key', 'range', 'max_is_zero', 'style', 'offset', 'step']
+        equality_fields = [ 'range', 'max_is_zero', 'style', 'offset', 'step']
 
         def __init__(self, object, field, range, max_is_zero=False, style="bar", offset=0, step=None):
             self.object = object
@@ -350,10 +350,9 @@ init -1500 python:
 
         def __init__(self, viewport):
             self.viewport = viewport
-            self.screen = renpy.current_screen()
 
         def get_adjustment(self):
-            w = renpy.get_widget(self.screen, self.viewport)
+            w = renpy.get_widget(None, self.viewport)
             if not isinstance(w, Viewport):
                 raise Exception("The displayable with id %r is not declared, or not a viewport." % self.viewport)
 
@@ -375,10 +374,10 @@ init -1500 python:
 
         def __init__(self, viewport):
             self.viewport = viewport
-            self.screen = renpy.current_screen()
 
         def get_adjustment(self):
-            w = renpy.get_widget(self.screen, self.viewport)
+
+            w = renpy.get_widget(None, self.viewport)
             if not isinstance(w, Viewport):
                 raise Exception("The displayable with id %r is not declared, or not a viewport." % self.viewport)
 

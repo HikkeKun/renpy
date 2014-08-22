@@ -25,12 +25,13 @@ from __future__ import division
 from __future__ import absolute_import
 
 import renpy # @UnusedImport
+from renpy.python import py_compile
 
 # Import the Python AST module, instead of the Ren'Py ast module.
 import ast
 
 # The set of names that should be treated as constants.
-constants = { 'True', 'False', 'None', "config", "style" }
+always_constants = { 'True', 'False', 'None', "config", "style" }
 
 # The set of names that should be treated as pure functions.
 pure_functions = {
@@ -62,14 +63,26 @@ pure_functions = {
     "DynamicCharacter", "Fixed", "HBox", "VBox", "Grid", "AlphaBlend", "At",
     "color",
 
+    # ui.py
+
+    "ui.returns",
+    "ui.jumps",
+    "ui.jumpsoutofcontext",
+    "ui.callsinnewcontext",
+    "ui.invokesinnewcontext",
+    "ui.gamemenus",
     }
+
+constants = always_constants | pure_functions
+
+# A set of names that should not be treated as global constants.
+not_constants = set()
 
 def const(name):
     """
     :doc: const
 
     Declares a variable in the store to be constant.
-
 
     A variable is constant if nothing can change its value, or any value
     reached by indexing it or accessing its attributes. Variables must
@@ -79,7 +92,26 @@ def const(name):
         A string giving the name of the variable to declare constant.
     """
 
-    constants.add(name)
+    if name not in not_constants:
+        constants.add(name)
+
+
+def not_const(name):
+    """
+    :doc: const
+
+    Declares a name in the store to be not constant.
+
+    This undoes the effect of calls to :func:`renpy.const` and
+    :func:`renpy.pure`.
+
+    `name`
+        The name to declare not constant.
+    """
+
+    constants.discard(name)
+    pure_functions.discard(name)
+    not_constants.add(name)
 
 
 def pure(fn):
@@ -97,164 +129,414 @@ def pure(fn):
     Returns `fn`, allowing this function to be used as a decorator.
     """
 
-    rv = fn
+    name = fn
 
-    if not isinstance(fn, basestring):
-        fn = fn.__name__
+    if not isinstance(name, basestring):
+        name = fn.__name__
 
-    pure_functions.add(fn)
+    if name not in not_constants:
+        pure_functions.add(name)
+        constants.add(name)
 
-    return rv
+    return fn
 
-def is_constant(node):
+
+class Control(object):
     """
-    Returns true if `node` is constant for the purpose of screen
-    language. Node should be a python AST node.
+    Represents control flow.
 
-    Screen language ignores object identity for the purposes of
-    object equality.
+    `const`
+        True if this statement always executes.
+
+    `loop`
+        True if this corresponds to a loop.
     """
 
-    def check_slice(slice): # @ReservedAssignment
+    def __init__(self, const, loop):
+        self.const = const
+        self.loop = loop
 
-        if isinstance(slice, ast.Index):
-            return check_node(slice.value)
+# Three levels of constness.
+GLOBAL_CONST = 2 # Expressions that are const everywhere.
+LOCAL_CONST = 1  # Expressions that are const with regard to a screen + parameters.
+NOT_CONST = 0    # Expressions that are not const.
 
-        elif isinstance(slice, ast.Slice):
-            if slice.lower and not check_node(slice.lower):
-                return False
-            if slice.upper and not check_node(slice.upper):
-                return False
-            if slice.step and not check_node(slice.step):
-                return False
+class Analysis(object):
+    """
+    Represents the result of code analysis, and provides tools to perform
+    code analysis.
+    """
 
+    def __init__(self):
+        # The variables we consider to be not-constant.
+        self.not_constant = set(not_constants)
+
+        # Variables we consider to be locally constant.
+        self.local_constant = set()
+
+        # Veriables we consider to be globally constant.
+        self.global_constant = set(always_constants)
+
+        # The functions we consider to be pure.
+        self.pure_functions = set(pure_functions)
+
+        # Old versions of the analysis.
+        self.old_not_constant = set()
+        self.old_local_constant = set()
+        self.old_global_constant = set()
+        self.old_pure_functions = set()
+
+        # Represents what we know about the current control.
+        self.control = Control(True, False)
+
+        # The stack of const_flow values.
+        self.control_stack = [ self.control ]
+
+    def push_control(self, const=True, loop=False):
+        self.control = Control(self.control.const and const, loop)
+        self.control_stack.append(self.control)
+
+    def pop_control(self):
+        rv = self.control_stack.pop()
+        self.control = self.control_stack[-1]
+        return rv
+
+    def exit_loop(self):
+        """
+        Call this to indicate the current loop is being exited by the
+        continue or break statements.
+        """
+
+        l = list(self.control_stack)
+        l.reverse()
+
+        for i in l:
+            i.const = False
+
+            if i.loop:
+                break
+
+    def at_fixed_point(self):
+        """
+        Returns True if we've reached a fixed point, where the analysis has
+        not changed since the last time we called this function.
+        """
+
+        if ((self.old_not_constant == self.not_constant) and
+            (self.old_global_constant == self.global_constant) and
+            (self.old_local_constant == self.local_constant) and
+            (self.old_pure_functions == self.pure_functions)):
             return True
+
+        self.old_not_constant = set(self.not_constant)
+        self.old_global_constant = set(self.global_constant)
+        self.old_local_constant = set(self.local_constant)
+        self.old_pure_functions = set(self.pure_functions)
 
         return False
 
-
-    def check_name(node):
+    def mark_constant(self, name):
         """
-        Check nodes that make up a name. This returns a pair:
-
-        * The first element is True if the node is constant, and False
-          otherwise.
-        * The second element is None if the node is constant or the name is
-          not known, and the name otherwise.
+        Marks `name` as a potential local constant.
         """
 
-        if isinstance(node, ast.Name):
-            name = node.id
+        if not name in self.not_constant:
+            self.local_constant.add(name)
+            self.global_constant.discard(name)
+            self.pure_functions.discard(name)
 
-        elif isinstance(node, ast.Attribute):
-            const, name = check_name(node.value)
-
-            if name is not None:
-                name = name + "." + node.attr
-
-            if const:
-                return True, name
-
-        else:
-            return check_node(node), None
-
-        if name in constants:
-            return True, None
-
-        return False, name
-
-    def check_nodes(nodes):
+    def mark_not_constant(self, name):
         """
-        Checks a list of nodes. Returns true if all are constant, and
-        False otherwise.
+        Marks `name` as definitely not-constant.
         """
+
+        self.not_constant.add(name)
+
+        self.pure_functions.discard(name)
+        self.local_constant.discard(name)
+        self.global_constant.discard(name)
+
+    def is_constant(self, node):
+        """
+        Returns true if `node` is constant for the purpose of screen
+        language. Node should be a python AST node.
+
+        Screen language ignores object identity for the purposes of
+        object equality.
+        """
+
+        def check_slice(slice): # @ReservedAssignment
+
+            if isinstance(slice, ast.Index):
+                return check_node(slice.value)
+
+            elif isinstance(slice, ast.Slice):
+                consts = [ ]
+
+                if slice.lower:
+                    consts.append(check_node(slice.lower))
+                if slice.upper:
+                    consts.append(check_node(slice.upper))
+                if slice.step:
+                    consts.append(check_node(slice.step))
+
+                return min(consts)
+
+            return NOT_CONST
+
+        def check_name(node):
+            """
+            Check nodes that make up a name. This returns a pair:
+
+            * The first element is True if the node is constant, and False
+              otherwise.
+            * The second element is None if the node is constant or the name is
+              not known, and the name otherwise.
+            """
+
+            if isinstance(node, ast.Name):
+                const = NOT_CONST
+                name = node.id
+
+            elif isinstance(node, ast.Attribute):
+                const, name = check_name(node.value)
+
+                if name is not None:
+                    name = name + "." + node.attr
+
+            else:
+                return check_node(node), None
+
+            if name in self.not_constant:
+                return NOT_CONST, name
+            elif name in self.global_constant:
+                return GLOBAL_CONST, name
+            elif name in self.local_constant:
+                return LOCAL_CONST, name
+            else:
+                return const, name
+
+        def check_nodes(nodes):
+            """
+            Checks a list of nodes for constness.
+            """
+
+            nodes = list(nodes)
+
+            if not nodes:
+                return GLOBAL_CONST
+
+            return min(check_node(i) for i in nodes)
+
+        def check_node(node):
+            """
+            Returns true if the ast node `node` is constant.
+            """
+
+            # This handles children that do not exist.
+            if node is None:
+                return GLOBAL_CONST
+
+            #PY3: see if there are new node types.
+
+            if isinstance(node, (ast.Num, ast.Str)):
+                return GLOBAL_CONST
+
+            elif isinstance(node, (ast.List, ast.Tuple)):
+                return check_nodes(node.elts)
+
+            elif isinstance(node, (ast.Attribute, ast.Name)):
+                return check_name(node)[0]
+
+            elif isinstance(node, ast.BoolOp):
+                return check_nodes(node.values)
+
+            elif isinstance(node, ast.BinOp):
+                return min(
+                    check_node(node.left),
+                    check_node(node.right),
+                    )
+
+            elif isinstance(node, ast.UnaryOp):
+                return check_node(node.operand)
+
+            elif isinstance(node, ast.Call):
+                const, name = check_name(node.func)
+
+                # The function must have a name, and must be declared pure.
+                if (const != GLOBAL_CONST) or  (name not in self.pure_functions):
+                    return NOT_CONST
+
+                consts = [ ]
+
+                # Arguments and keyword arguments must be pure.
+                consts.append(check_nodes(node.args))
+                consts.append(check_nodes(i.value for i in node.keywords))
+
+                if node.starargs is not None:
+                    consts.append(check_node(node.starargs))
+
+                if node.kwargs is not None:
+                    consts.append(check_node(node.kwargs))
+
+                return min(consts)
+
+            elif isinstance(node, ast.IfExp):
+                return min(
+                    check_node(node.test),
+                    check_node(node.body),
+                    check_node(node.orelse),
+                    )
+
+            elif isinstance(node, ast.Dict):
+                return min(
+                    check_nodes(node.keys),
+                    check_nodes(node.values)
+                    )
+
+            elif isinstance(node, ast.Set):
+                return check_nodes(node.elts)
+
+            elif isinstance(node, ast.Compare):
+                return min(
+                    check_node(node.left),
+                    check_nodes(node.comparators),
+                    )
+
+            elif isinstance(node, ast.Repr):
+                return check_node(node.value)
+
+            elif isinstance(node, ast.Subscript):
+                return min(
+                    check_node(node.value),
+                    check_slice(node.slice),
+                    )
+
+            return NOT_CONST
+
+        return check_node(node)
+
+    def is_constant_expr(self, expr):
+        """
+        Compiles `expr` into an AST node, then returns the result of
+        self.is_constant called on that node.
+        """
+
+        node = py_compile(expr, 'eval', ast_node=True)
+        return self.is_constant(node)
+
+    def python(self, code):
+        """
+        Performs analysis on a block of python code.
+        """
+
+        nodes = py_compile(code, 'exec', ast_node=True)
+
+        a = PyAnalysis(self)
 
         for i in nodes:
-            if not check_node(i):
-                return False
-        return True
+            a.visit(i)
 
-    def check_node(node):
+    def parameters(self, parameters):
         """
-        Returns true if the ast node `node` is constant.
+        Analyzes the parameters to the screen.
         """
 
-        #PY3: see if there are new node types.
+        self.global_constant.update(constants)
 
-        if isinstance(node, (ast.Num, ast.Str)):
-            return True
+        # As we have parameters, analyze with those parameters.
 
-        elif isinstance(node, (ast.List, ast.Tuple)):
-            return check_nodes(node.elts)
+        for name, _default in parameters.parameters:
+            self.mark_not_constant(name)
 
-        elif isinstance(node, (ast.Attribute, ast.Name)):
-            return check_name(node)[0]
+        if parameters.extrapos is not None:
+            self.mark_not_constant(parameters.extrapos)
 
-        elif isinstance(node, ast.BoolOp):
-            return check_nodes(node.values)
+        if parameters.extrakw is not None:
+            self.mark_not_constant(parameters.extrakw)
 
-        elif isinstance(node, ast.BinOp):
-            return (
-                check_node(node.left) and
-                check_node(node.right)
-                )
 
-        elif isinstance(node, ast.UnaryOp):
-            return check_node(node.operand)
+class PyAnalysis(ast.NodeVisitor):
+    """
+    This analyzes Python code to determine which variables should be
+    marked const, and which should be marked non-const.
+    """
 
-        elif isinstance(node, ast.Call):
-            _const, name = check_name(node.func)
+    def __init__(self, analysis):
 
-            # The function must have a name, and must be declared pure.
-            if not name in pure_functions:
-                return False
+        self.analysis = analysis
 
-            # Arguments and keyword arguments must be pure.
-            if not check_nodes(node.args):
-                return False
+    def visit_Name(self, node):
 
-            if not check_nodes(i.value for i in node.keywords):
-                return False
+        if isinstance(node, ast.AugStore):
+            self.analysis.mark_not_constant(node.id)
 
-            if (node.starargs is not None) and not check_node(node.starargs):
-                return False
+        elif isinstance(node.ctx, ast.Store):
+            if self.analysis.control.const:
+                self.analysis.mark_constant(node.id)
+            else:
+                self.analysis.mark_not_constant(node.id)
 
-            if (node.kwargs is not None) and not check_node(node.kwargs):
-                return False
+    def visit_Assign(self, node):
 
-            return True
+        const = self.analysis.is_constant(node.value)
+        self.analysis.push_control(const, False)
 
-        elif isinstance(node, ast.IfExp):
-            return (
-                check_node(node.test) and
-                check_node(node.body) and
-                check_node(node.orelse)
-                )
+        self.generic_visit(node)
 
-        elif isinstance(node, ast.Dict):
-            return (
-                check_nodes(node.keys) and
-                check_nodes(node.values)
-                )
+        self.analysis.pop_control()
 
-        elif isinstance(node, ast.Set):
-            return check_nodes(node.elts)
+    def visit_AugAssign(self, node):
 
-        elif isinstance(node, ast.Compare):
-            return (
-                check_node(node.left) and
-                check_nodes(node.comparators)
-                )
+        self.analysis.push_control(False, False)
 
-        elif isinstance(node, ast.Repr):
-            return check_node(node.value)
+        self.generic_visit(node)
 
-        elif isinstance(node, ast.Subscript):
-            return (
-                check_node(node.value) and
-                check_slice(node.slice)
-                )
+        self.analysis.pop_control()
 
-        return False
+    def visit_For(self, node):
 
-    return check_node(node)
+        const = self.analysis.is_constant(node.iter)
+
+        self.analysis.push_control(const=const, loop=True)
+        old_const = self.analysis.control.const
+
+        self.generic_visit(node)
+
+        if self.analysis.control.const != old_const:
+            self.generic_visit(node)
+
+        self.analysis.pop_control()
+
+    def visit_While(self, node):
+
+        const = self.analysis.is_constant(node.test)
+
+        self.analysis.push_control(const=const, loop=True)
+        old_const = self.analysis.control.const
+
+        self.generic_visit(node)
+
+        if self.analysis.control.const != old_const:
+            self.generic_visit(node)
+
+        self.analysis.pop_control()
+
+    def visit_If(self, node):
+        const = self.analysis.is_constant(node.test)
+        self.analysis.push_control(const, False)
+
+        self.generic_visit(node)
+
+        self.analysis.pop_control()
+
+    # The continue and break statements should be pretty rare, so if they
+    # occur, we mark everything later in the loop as non-const.
+
+    def visit_Break(self, node):
+        self.analysis.exit_loop()
+
+    def visit_Continue(self, node):
+        self.analysis.exit_loop()
+
+

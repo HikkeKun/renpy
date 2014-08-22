@@ -40,6 +40,9 @@ class Action(renpy.object.Object):
     action should be displayed insensitive or disabled.
     """
 
+    # Alt text.
+    alt = None
+
     def get_sensitive(self):
         return True
 
@@ -59,6 +62,9 @@ class BarValue(renpy.object.Object):
     """
     This can be passed to the value method of bar and hotbar.
     """
+
+    # Alt text.
+    alt = "Bar"
 
     def replaces(self, other):
         return
@@ -156,7 +162,11 @@ class Detached(Addable):
     Used to indicate a widget is detached from the stack.
     """
 
+    def __init__(self, style_group):
+        self.style_group = style_group
+
     def add(self, d, key):
+        self.child = d
         stack.pop()
 
     def close(self, d):
@@ -180,12 +190,12 @@ class ChildOrFixed(Addable):
         stack.pop()
 
         if len(self.queue) == 1:
-            add(self.queue[0])
+            implicit_add(self.queue[0])
         else:
             fixed()
 
             for i in self.queue:
-                add(i)
+                implicit_add(i)
 
             close()
 
@@ -269,7 +279,7 @@ def at(transform):
     """
     :doc: ui
 
-    Specifieds a transform that is applied to the next displayable to
+    Specifies a transform that is applied to the next displayable to
     be created. This is largely obsolete, as all UI functions now take
     an `at` argument.
     """
@@ -288,7 +298,9 @@ def detached():
     you want to assign the result of a ui function to a variable.
     """
 
-    stack.append(Detached())
+    rv = Detached(stack[-1].style_group)
+    stack.append(rv)
+    return rv
 
 def layer(name):
     """
@@ -502,6 +514,9 @@ class Wrapper(renpy.object.Object):
 def is_selected(clicked):
 
     if isinstance(clicked, (list, tuple)):
+        for i in clicked:
+            if isinstance(i, renpy.store.SelectedIf): # @UndefinedVariable
+                return i.get_selected()
         return any(is_selected(i) for i in clicked)
 
     elif isinstance(clicked, Action):
@@ -513,6 +528,9 @@ def is_selected(clicked):
 def is_sensitive(clicked):
 
     if isinstance(clicked, (list, tuple)):
+        for i in clicked:
+            if isinstance(i, renpy.store.SensitiveIf): # @UndefinedVariable
+                return i.get_sensitive()
         return all(is_sensitive(i) for i in clicked)
 
     elif isinstance(clicked, Action):
@@ -538,6 +556,16 @@ def _add(d, **kwargs):
     return rv
 
 add = Wrapper(_add)
+
+def _implicit_add(d):
+    """
+    A faster version of add to use when we know `d` is a displayable and isn't
+    transformed.
+    """
+
+    return d
+
+implicit_add = Wrapper(_implicit_add)
 
 def _image(im, **properties):
     d = renpy.display.im.image(im, loose=True, **properties)
@@ -1059,6 +1087,7 @@ class Imagemap(object):
     """
 
     alpha = True
+    cache_param = True
 
     def __init__(self, insensitive, idle, selected_idle, hover, selected_hover, selected_insensitive, alpha, cache):
         self.insensitive = renpy.easy.displayable(insensitive)
@@ -1070,7 +1099,12 @@ class Imagemap(object):
 
         self.alpha = alpha
 
+        self.cache_param = cache
         self.cache = renpy.display.imagemap.ImageMapCache(cache)
+
+    def reuse(self):
+        self.cache = renpy.display.imagemap.ImageMapCache(self.cache_param)
+
 
 def _imagemap(ground=None, hover=None, insensitive=None, idle=None, selected_hover=None, selected_idle=None, selected_insensitive=None, auto=None, alpha=True, cache=True, style='imagemap', **properties):
 

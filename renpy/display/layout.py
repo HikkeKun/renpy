@@ -24,6 +24,7 @@
 
 from renpy.display.render import render, Render
 import renpy.display
+import pygame
 
 
 def scale(num, base):
@@ -206,7 +207,7 @@ class Container(renpy.display.core.Displayable):
 
 def LiveComposite(size, *args, **properties):
     """
-    :args: disp_imagelike
+    :doc: disp_imagelike
 
     This creates a new displayable of `size`, by compositing other
     displayables. `size` is a (width, height) tuple.
@@ -455,6 +456,66 @@ class MultiBox(Container):
         self.anim_times = [ ]
         self.layers = None
         self.scene_list = None
+
+    def _in_old_scene(self):
+
+        if self.layer_name is not None:
+
+            if self.scene_list is None:
+                return self
+
+            scene_list = [ ]
+
+            changed = False
+
+            for old_sle in self.scene_list:
+                new_sle = old_sle.copy()
+
+                d = new_sle.displayable._in_old_scene()
+
+                if d is not new_sle.displayable:
+                    new_sle.displayable = d
+                    changed = True
+
+                scene_list.append(new_sle)
+
+            if not changed:
+                return self
+
+            rv = MultiBox(layout=self.default_layout)
+            rv.layer_name = self.layer_name
+            rv.append_scene_list(scene_list)
+
+        elif self.layers:
+            rv = MultiBox(layout=self.default_layout)
+            rv.layers = { }
+
+            changed = False
+
+            for layer in renpy.config.layers:
+                old_d = self.layers[layer]
+                new_d = old_d._in_old_scene()
+
+                if new_d is not old_d:
+                    changed = True
+
+                rv.add(new_d)
+                rv.layers[layer] = new_d
+
+            if not changed:
+                return self
+
+        else:
+            return self
+
+        if self.offsets:
+            rv.offsets = list(self.offsets)
+        if self.start_times:
+            rv.start_times = list(self.start_times)
+        if self.anim_times:
+            rv.anim_times = list(self.anim_times)
+
+        return rv
 
     def __unicode__(self):
         layout = self.style.box_layout
@@ -725,6 +786,9 @@ class MultiBox(Container):
                 remheight -= (sh + padding)
 
             maxx, maxy = layout_line(line, 0, remheight if yfill else 0)
+
+        else:
+            raise Exception("Unknown box layout: %r" % layout)
 
         # Back to the common for vertical and horizontal.
 
@@ -1006,26 +1070,11 @@ class DynamicDisplayable(renpy.display.core.Displayable):
         self.function = function
         self.args = args
         self.kwargs = kwargs
-        self.st = 0
-        self.at = 0
 
     def visit(self):
         return [ ]
 
-    def per_interact(self):
-        child, _ = self.function(self.st, self.at, *self.args, **self.kwargs)
-        child = renpy.easy.displayable(child)
-        child.visit_all(lambda a : a.per_interact())
-
-        if child is not self.child:
-            renpy.display.render.redraw(self, 0)
-            self.child = child
-
-    def render(self, w, h, st, at):
-
-        self.st = st
-        self.at = at
-
+    def update(self, st, at):
         child, redraw = self.function(st, at, *self.args, **self.kwargs)
         child = renpy.easy.displayable(child)
         child.visit_all(lambda c : c.per_interact())
@@ -1034,6 +1083,12 @@ class DynamicDisplayable(renpy.display.core.Displayable):
 
         if redraw is not None:
             renpy.display.render.redraw(self, redraw)
+
+    def per_interact(self):
+        renpy.display.render.redraw(self, 0)
+
+    def render(self, w, h, st, at):
+        self.update(st, at)
 
         return renpy.display.render.render(self.child, w, h, st, at)
 
@@ -1047,7 +1102,7 @@ class DynamicDisplayable(renpy.display.core.Displayable):
 
     def get_placement(self):
         if not self.child:
-            self.per_interact()
+            self.update(0, 0)
 
         return self.child.get_placement()
 
@@ -1210,7 +1265,7 @@ def edgescroll_proportional(n):
 
 class Viewport(Container):
 
-    __version__ = 3
+    __version__ = 5
 
     def after_upgrade(self, version):
         if version < 1:
@@ -1240,6 +1295,9 @@ class Viewport(Container):
             self.set_adjustments_param = True
             self.xinitial_param = None
             self.yinitial_param = None
+
+        if version < 5:
+            self.focusable = self.draggable
 
 
     def __init__(self,
@@ -1286,6 +1344,9 @@ class Viewport(Container):
 
         self.mousewheel = mousewheel
         self.draggable = draggable
+
+        # Layout participates in the focus system so drags get migrated.
+        self.focusable = draggable
 
         self.width = 0
         self.height = 0
@@ -1383,7 +1444,7 @@ class Viewport(Container):
 
             self.yadjustment.value = value
 
-        if self.edge_size and self.edge_last_st and (self.edge_xspeed or self.edge_yspeed):
+        if self.edge_size and (self.edge_last_st is not None) and (self.edge_xspeed or self.edge_yspeed):
 
             duration = max(st - self.edge_last_st, 0)
             self.xadjustment.change(self.xadjustment.value + duration * self.edge_xspeed)
@@ -1391,7 +1452,7 @@ class Viewport(Container):
 
             self.check_edge_redraw()
 
-        self.edge_last_st = st
+            self.edge_last_st = st
 
         cxo = -int(self.xadjustment.value)
         cyo = -int(self.yadjustment.value)
@@ -1470,7 +1531,7 @@ class Viewport(Container):
                 renpy.display.focus.set_grab(self)
                 raise renpy.display.core.IgnoreEvent()
 
-        if self.edge_size:
+        if self.edge_size and ev.type in [ pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP ]:
 
             def speed(n, zero, one):
                 """

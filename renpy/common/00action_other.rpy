@@ -88,6 +88,29 @@ init -1500 python:
             return self.expression
 
     @renpy.pure
+    class SensitiveIf(Action, DictEquality):
+        """
+        :doc: other_action
+
+        This allows an expression to control if a button should be marked
+        as sensitive. It should be used as part of a list with one or more
+        actions. For example::
+
+            # The button is sensitive if mars_flag is True
+            textbutton "Marsopolis":
+                action [ Jump("mars"), SensitiveIf(mars_flag) ]
+        """
+
+        def __init__(self, expression):
+            self.expression = expression
+
+        def __call__(self):
+            return None
+
+        def get_sensitive(self):
+            return self.expression
+
+    @renpy.pure
     class Screenshot(Action, DictEquality):
         """
          :doc: other_action
@@ -221,7 +244,7 @@ init -1500 python:
 
         A tooltip object has a ``value`` field, which is set to the `default`
         value passed to the constructor when the tooltip is created. When
-        a button using an action creadted by the tooltip is hovered, the
+        a button using an action created by the tooltip is hovered, the
         value field changes to the value associated with the action.
         """
 
@@ -258,6 +281,8 @@ init -1500 python:
             A string giving the language to translate to, or None to use
             the default language of the game script.
         """
+
+        alt = "Language [text]"
 
         def __init__(self, language):
             self.language = language
@@ -355,6 +380,27 @@ init -1500 python:
         def __call__(self):
             if _preferences.mouse_move:
                 renpy.set_mouse_pos(self.x, self.y, self.duration)
+
+    class Function(Action, DictEquality):
+        """
+        :doc: other_action
+
+        This Action calls `callable` with `args` and `kwargs`.
+
+        `callable`
+            Callable object.
+        `args`
+            position arguments to be passed to `callable`.
+        `kwargs`
+            keyword arguments to be passed to `callable`.
+        """
+        def __init__(self, callable, *args, **kwargs):
+            self.callable = callable
+            self.args = args
+            self.kwargs = kwargs
+
+        def __call__(self):
+            self.callable(*self.args, **self.kwargs)
 
 
 transform _notify_transform:

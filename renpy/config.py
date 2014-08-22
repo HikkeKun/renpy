@@ -24,7 +24,7 @@
 # methods that perform standard tasks, like the say and menu methods.
 
 # This will be deleted by the end of this file.
-import renpy.display #@UnusedImport
+import renpy.display
 import os
 
 # Can we add more config variables?
@@ -505,6 +505,31 @@ choice_layer = "screens"
 # If true, we will not use the .report_traceback method to produced
 # prettier tracebacks.
 raw_tracebacks = ("RENPY_RAW_TRACEBACKS" in os.environ)
+
+# A function to process texts which should be spoken
+tts_function = renpy.display.tts.default_tts_function
+
+# The number of copies of each screen to keep in the screen cache.
+screen_cache_size = 4
+
+# A callback that adjusts the physical size of the screen.
+adjust_view_size = None
+
+# True if we should autosave when a choice occurs.
+autosave_on_choice = True
+
+# A list of channels we should emphasize the audio on.
+emphasize_audio_channels = [ 'voice' ]
+
+# What we should lower the volume of non-emphasized channels to.
+emphasize_audio_volume = 0.5
+
+# How long we should take to raise and lower the volume when emphasizing
+# audio.
+emphasize_audio_time = 0.5
+
+# Should we transition screens, or always use their new states.
+transition_screens = True
 
 del renpy
 del os

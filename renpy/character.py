@@ -115,6 +115,8 @@ def predict_show_display_say(who, what, who_args, what_args, window_args, image=
         if image != "<Dynamic>":
             renpy.easy.predict(who)
 
+        kwargs["image"] = image
+
     if screen:
         props = compute_widget_properties(who_args, what_args, window_args)
 
@@ -123,7 +125,6 @@ def predict_show_display_say(who, what, who_args, what_args, window_args, image=
             _widget_properties=props,
             who=who,
             what=what,
-            image=image,
             two_window=two_window,
             side_image=side_image,
             **kwargs)
@@ -254,12 +255,14 @@ def show_display_say(who, what, who_args={}, what_args={}, window_args={},
             index += 1
             tag = "%s%d" % (screen, index)
 
+        if image:
+            kwargs["image"] = image
+
         renpy.display.screen.show_screen(
             screen,
             _widget_properties=props,
             _transient = True,
             _tag = tag,
-            image=image,
             side_image=side_image,
             two_window=two_window,
             who=who,
@@ -787,7 +790,8 @@ class ADVCharacter(object):
             if self.dynamic:
                 who = renpy.python.py_eval(who)
 
-            sub = renpy.substitutions.substitute
+            def sub(s, scope=None, force=False, translate=True):
+                return renpy.substitutions.substitute(s, scope=scope, force=force, translate=translate)[0]
 
             if who is not None:
                 if renpy.config.new_substitutions:
@@ -901,7 +905,7 @@ def Character(name=NotSet, kind=None, **properties):
     screen.
 
     `voice_tag`
-        A String that enables the voice file assosiated with the
+        A String that enables the voice file associated with the
         Character to be muted or played in the 'voice' channel.
 
     **Prefixes and Suffixes.**

@@ -518,6 +518,7 @@ position_property_names = [
         "xsize",
         "ysize",
         "xysize",
+        "alt",
         ]
 
 position_properties = [ Style(i) for i in position_property_names ]
@@ -1214,7 +1215,7 @@ class ScreenLangScreen(renpy.object.Object):
             self.modal = "False"
             self.zorder = "0"
 
-    def define(self):
+    def define(self, location):
         """
         Defines a screen.
         """
@@ -1228,6 +1229,7 @@ class ScreenLangScreen(renpy.object.Object):
             variant=renpy.python.py_eval(self.variant),
             predict=renpy.python.py_eval(self.predict),
             parameters=self.parameters,
+            location=self.location,
             )
 
     def __call__(self, *args, **kwargs):

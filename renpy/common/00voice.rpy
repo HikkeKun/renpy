@@ -50,6 +50,9 @@ init -1500 python:
     _voice.tlid = None
     _voice.auto_file = None
 
+    # If true, the voice system ignores the interaction.
+    _voice.ignore_interaction = False
+
     # The voice filename format. This may contain the voice tag
     config.voice_filename_format = "{filename}"
 
@@ -153,6 +156,27 @@ init -1500 python:
             renpy.restart_interaction()
 
     @renpy.pure
+    def SetCharacterVolume(voice_tag, volume=None):
+        """
+        :doc: voice_action
+
+        This allows the volume of each characters to be adjusted.
+        If `volume` is None, this returns the value of volume of `voice_tag`.
+        Otherwise, this set it to `volume`.
+
+        `volume` is a number between 0.0 and 1.0, and is interpreted as a
+        fraction of the mixer volume for `voice` channel.
+        """
+
+        if voice_tag not in persistent._character_volume:
+            persistent._character_volume[voice_tag] = 1.0
+
+        if volume is None:
+            return DictValue(persistent._character_volume, voice_tag, 1.0)
+        else:
+            return SetDict(persistent._character_volume, voice_tag, volume)
+
+    @renpy.pure
     class ToggleVoiceMute(Action, DictEquality):
         """
         :doc: voice_action
@@ -207,11 +231,18 @@ init -1500 python hide:
     if persistent._voice_mute is None:
         persistent._voice_mute = set()
 
+    # The dictionary of the volume of each voice tags.
+    if persistent._character_volume is None:
+        persistent._character_volume = dict()
+
     # This is called on each interaction, to ensure that the
     # appropriate voice file is played for the user.
     def voice_interact():
 
         if not config.has_voice:
+            return
+
+        if _voice.ignore_interaction:
             return
 
         _voice.auto_file = None
@@ -239,16 +270,22 @@ init -1500 python hide:
             _voice.tlid = tlid
 
 
+        volume = persistent._character_volume.get(_voice.tag, 1.0)
+        renpy.music.get_channel("voice").set_volume(volume)
 
-        if _voice.tag in persistent._voice_mute:
+        if (not volume) or (_voice.tag in persistent._voice_mute):
             renpy.sound.stop(channel="voice")
             store._last_voice_play = _voice.play
-        elif _voice.play and not config.skipping:
-            renpy.sound.play(_voice.play, channel="voice")
+
+        elif _voice.play:
+            if not config.skipping:
+                renpy.sound.play(_voice.play, channel="voice")
+
             store._last_voice_play = _voice.play
+
         elif not _voice.sustain:
             renpy.sound.stop(channel="voice")
-            store._last_voice_play = _voice.play
+            store._last_voice_play = None
 
         _voice.play = None
         _voice.sustain = False

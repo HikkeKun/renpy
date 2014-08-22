@@ -12,7 +12,7 @@ init -1 python hide:
     # 경로: 프로젝트폴더/tl/None/
     style.default.font = "tl/None/NanumGothic.ttf"
     style._default.font = "tl/None/NanumGothic.ttf"
-    
+
 
     ## 개발자 도구를 활성화시킵니까? 게임이 배포되기 전에 False로 설정해서
     ## 사용자가 개발자툴을 이용하여 속임수를 쓰지 않도록 하세요.
@@ -86,7 +86,7 @@ init -1 python hide:
         ## 이로써 테마 설정은 모두 마쳤습니다. 테마는 다양한 스타일로
         ## 꾸밀 수 있으므로 테마를 변경하고 싶다면,
         ## 이 아래 공간에서 설정해야 합니다.
-        
+
         )
 
 
@@ -140,7 +140,7 @@ init -1 python hide:
     # style.mm_menu_frame.yanchor = 0.5
 
 
-    #########################################    
+    #########################################
     ## 아래의 설정들을 이용하면
     ## 렌파이에서 사용되는 기본 폰트를 꾸밀 수 있습니다.
 
@@ -256,7 +256,7 @@ init -1 python hide:
 
     #########################################
     ## 게임 데이터가 저장되는 경로의 이름입니다.
-    ## (이 경로는 지속 데이터를 init 코드에서 사용할 수 있도록 
+    ## (이 경로는 지속 데이터를 init 코드에서 사용할 수 있도록
     ## 다른 init 블럭의 코드가 사용되기 전에 미리 설정되어야 합니다.)
 python early:
     config.save_directory = "PROJECT_NAME-UNIQUE"
@@ -273,7 +273,7 @@ init -1 python hide:
 
     config.default_fullscreen = False
 
-    ## 기본 글자 표시 속도로 초당 표시 글자 수. 
+    ## 기본 글자 표시 속도로 초당 표시 글자 수.
     ## 0을 입력하면 글자가 한 번에 표시됩니다.
 
     config.default_text_cps = 0

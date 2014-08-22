@@ -287,7 +287,7 @@ class Script(object):
             try:
                 data, stmts = loads(f.read().decode('zlib'))
             except:
-                raise
+                return None, None
 
             if not isinstance(data, dict):
                 return None, None
@@ -519,7 +519,6 @@ class Script(object):
 
                 renpy.game.exception_info = old_ei
 
-            i.source = None
             self.bytecode_newcache[key] = code
             i.bytecode = marshal.loads(code)
 

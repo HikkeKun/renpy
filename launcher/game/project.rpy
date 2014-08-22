@@ -48,6 +48,7 @@ init python in project:
         _("After making changes to the script, press shift+R to reload your game."),
         _("Press shift+O (the letter) to access the console."),
         _("Press shift+D to access the developer menu."),
+        _("Have you backed up your projects recently?"),
     ]
 
     class Project(object):
@@ -61,7 +62,10 @@ init python in project:
                 raise Exception("{} does not exist.".format(path))
 
             # The name of the project.
-            self.name = os.path.basename(path)
+            if path.endswith(".app/Contents/Resources/autorun"):
+                self.name = os.path.basename(path[:-len(".app/Contents/Resources/autorun")])
+            else:
+                self.name = os.path.basename(path)
 
             # The path to the project.
             self.path = path
@@ -314,7 +318,8 @@ init python in project:
             """
 
             rv = [ ]
-            rv.extend(i for i, isdir in util.walk(self.path) if (not isdir) and (i.endswith(".rpy") or i.endswith(".rpym")) )
+            rv.extend(i for i, isdir in util.walk(self.path)
+                if (not isdir) and (i.endswith(".rpy") or i.endswith(".rpym")) and (not i.startswith("tmp/")) )
 
             return rv
 
@@ -387,6 +392,10 @@ init python in project:
                 # A project must be a directory.
                 if not os.path.isdir(ppath):
                     continue
+
+                autorun = os.path.join(ppath, "Contents", "Resources", "autorun")
+                if os.path.exists(autorun):
+                    ppath = autorun
 
                 # A project has either a game/ directory, or a project.json
                 # file.

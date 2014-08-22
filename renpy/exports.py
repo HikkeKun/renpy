@@ -30,6 +30,22 @@ _file = file
 import renpy.display
 import renpy.audio
 
+from renpy.sl2.pyutil import const, pure, not_const
+
+def renpy_pure(fn):
+    """
+    Marks renpy.`fn` as a pure function.
+    """
+
+    name = fn
+
+    if not isinstance(name, basestring):
+        name = fn.__name__
+
+    pure("renpy." + name)
+
+    return fn
+
 from renpy.text.extras import ParameterizedText
 from renpy.text.font import register_sfont, register_mudgefont, register_bmfont
 from renpy.text.text import language_tailor
@@ -38,7 +54,8 @@ from renpy.display.behavior import run as run_action, run_unhovered, run_periodi
 from renpy.display.behavior import map_event, queue_event, clear_keymap_cache
 
 from renpy.display.minigame import Minigame
-from renpy.display.screen import define_screen, show_screen, hide_screen, use_screen, current_screen, has_screen, get_screen, get_widget
+from renpy.display.screen import define_screen, show_screen, hide_screen, use_screen, current_screen
+from renpy.display.screen import  has_screen, get_screen, get_widget, ScreenProfile as profile_screen
 from renpy.display.focus import focus_coordinates
 from renpy.display.predict import screen as predict_screen
 from renpy.display.image import image_exists
@@ -48,7 +65,7 @@ from renpy.audio.sound import play
 from renpy.display.video import movie_start_fullscreen, movie_start_displayable, movie_stop
 
 from renpy.loadsave import load, save, list_saved_games, can_load, rename_save, unlink_save, scan_saved_game
-from renpy.loadsave import list_slots, newest_slot, slot_mtime, slot_json, slot_screenshot
+from renpy.loadsave import list_slots, newest_slot, slot_mtime, slot_json, slot_screenshot, force_autosave
 
 from renpy.python import py_eval as eval
 from renpy.python import rng as random
@@ -67,7 +84,15 @@ import renpy.audio.music as music
 from renpy.statements import register as register_statement
 from renpy.text.extras import check_text_tags
 
-from renpy.sl2.pyutil import const, pure
+renpy_pure("ParameterizedText")
+renpy_pure("Keymap")
+renpy_pure("has_screen")
+renpy_pure("image_exists")
+renpy_pure("curry")
+renpy_pure("partial")
+renpy_pure("unelide_filename")
+renpy_pure("known_languages")
+renpy_pure("check_text_tags")
 
 import time
 import sys
@@ -88,7 +113,7 @@ def public_api():
     play
     movie_start_fullscreen, movie_start_displayable, movie_stop
     load, save, list_saved_games, can_load, rename_save, unlink_save, scan_saved_game
-    list_slots, newest_slot, slot_mtime, slot_json, slot_screenshot
+    list_slots, newest_slot, slot_mtime, slot_json, slot_screenshot, force_autosave
     eval
     random
     atl_warper
@@ -97,7 +122,7 @@ def public_api():
     music
     time
     define_screen, show_screen, hide_screen, use_screen, has_screen
-    current_screen, get_screen, get_widget
+    current_screen, get_screen, get_widget, profile_screen
     focus_coordinates
     predict, predict_screen
     displayable
@@ -108,10 +133,11 @@ def public_api():
     register_statement
     check_text_tags
     map_event, queue_event, clear_keymap_cache
-    const, pure
+    const, pure, not_const
     image_exists
 
 del public_api
+
 
 def roll_forward_info():
     """
@@ -126,6 +152,7 @@ def roll_forward_info():
 
     return renpy.game.log.forward_info()
 
+
 def in_rollback():
     """
     :doc: rollback
@@ -134,6 +161,7 @@ def in_rollback():
     """
 
     return renpy.game.log.in_rollback()
+
 
 def can_rollback():
     """
@@ -144,6 +172,7 @@ def can_rollback():
 
     return renpy.game.log.can_rollback()
 
+
 def in_fixed_rollback():
     """
     :doc: blockrollback
@@ -153,6 +182,7 @@ def in_fixed_rollback():
     """
 
     return renpy.game.log.in_fixed_rollback()
+
 
 def checkpoint(data=None, keep_rollback=None):
     """
@@ -174,6 +204,7 @@ def checkpoint(data=None, keep_rollback=None):
 
         renpy.game.log.checkpoint(data, keep_rollback=keep_rollback)
 
+
 def block_rollback():
     """
     :doc: blockrollback
@@ -184,6 +215,7 @@ def block_rollback():
 
     renpy.game.log.block()
 
+
 def fix_rollback():
     """
     :doc: blockrollback
@@ -192,6 +224,7 @@ def fix_rollback():
     statement.
     """
     renpy.game.log.fix_rollback()
+
 
 def retain_after_load():
     """
@@ -214,6 +247,7 @@ def count_displayables_in_layer(layer):
     sls = scene_lists()
 
     return len(sls.layers[layer])
+
 
 def image(name, d):
     """
@@ -243,6 +277,7 @@ def image(name, d):
 
     d = renpy.easy.displayable(d)
     renpy.display.image.register_image(name, d)
+
 
 def copy_images(old, new):
     """
@@ -282,6 +317,7 @@ def copy_images(old, new):
         if k[:lenold] == old:
             renpy.display.image.register_image(new + k[lenold:], v)
 
+
 def showing(name, layer='master'):
     """
     :doc: image_func
@@ -299,6 +335,7 @@ def showing(name, layer='master'):
         name = tuple(name.split())
 
     return renpy.game.context().images.showing(layer, name)
+
 
 def predict_show(name, layer='master', what=None, tag=None, at_list=[ ]):
     """
@@ -353,8 +390,6 @@ def predict_show(name, layer='master', what=None, tag=None, at_list=[ ]):
 
     renpy.game.context().images.predict_show(layer, name, True)
     renpy.display.predict.displayable(img)
-
-
 
 
 def show(name, at_list=[ ], layer='master', what=None, zorder=0, tag=None, behind=[ ], atl=None, transient=False, munge_name=True):
@@ -503,6 +538,7 @@ def scene(layer='master'):
     if renpy.config.missing_scene:
         renpy.config.missing_scene(layer)
 
+
 def watch(expression, style='default', **properties):
     """
     :doc: debug
@@ -520,6 +556,7 @@ def watch(expression, style='default', **properties):
                       style=style, **properties)
 
     renpy.config.overlay_functions.append(overlay_func)
+
 
 def input(prompt, default='', allow=None, exclude='{}', length=None, with_none=None, pixel_width=None): #@ReservedAssignment
     """
@@ -604,6 +641,7 @@ def input(prompt, default='', allow=None, exclude='{}', length=None, with_none=N
 
     return rv
 
+
 def menu(items, set_expr):
     """
     :undocumented:
@@ -655,6 +693,7 @@ def menu(items, set_expr):
                     set.add(label)
     return rv
 
+
 def choice_for_skipping():
     """
     :doc: other
@@ -671,7 +710,7 @@ def choice_for_skipping():
     if renpy.config.skipping and not renpy.game.preferences.skip_after_choices:
         renpy.config.skipping = None
 
-    if not renpy.game.after_rollback:
+    if renpy.config.autosave_on_choice and not renpy.game.after_rollback:
         renpy.loadsave.force_autosave(True)
 
 
@@ -841,6 +880,7 @@ def display_menu(items,
 
     return None
 
+
 class TagQuotingDict(object):
     def __getitem__(self, key):
 
@@ -860,6 +900,7 @@ class TagQuotingDict(object):
 
 tag_quoting_dict = TagQuotingDict()
 
+
 def predict_say(who, what):
     """
     :undocumented:
@@ -876,6 +917,7 @@ def predict_say(who, what):
     predict = getattr(who, 'predict', None)
     if predict:
         predict(what)
+
 
 def scry_say(who, scry):
     """
@@ -1161,6 +1203,7 @@ def with_statement(trans, always=False, paired=None, clear=True):
 
 globals()["with"] = with_statement
 
+
 def rollback(force=False, checkpoints=1, defer=False, greedy=True, label=None):
     """
     :doc: rollback
@@ -1207,6 +1250,7 @@ def rollback(force=False, checkpoints=1, defer=False, greedy=True, label=None):
     renpy.game.log.complete()
     renpy.game.log.rollback(checkpoints, greedy=greedy, label=label, force=force)
 
+
 def toggle_fullscreen():
     """
     :undocumented:
@@ -1215,12 +1259,14 @@ def toggle_fullscreen():
 
     renpy.game.preferences.fullscreen = not renpy.game.preferences.fullscreen
 
+
 def toggle_music():
     """
     :undocumented:
     Does nothing.
     """
 
+@renpy_pure
 def has_label(name):
     """
     :doc: label
@@ -1231,6 +1277,7 @@ def has_label(name):
 
     return renpy.game.script.has_label(name)
 
+@renpy_pure
 def get_all_labels():
     """
     :doc: label
@@ -1260,6 +1307,7 @@ def take_screenshot(scale=None, background=False):
 
     renpy.game.interface.take_screenshot(scale, background=background)
 
+
 def full_restart(transition=False, label="_invoke_main_menu", target="_main_menu"):
     """
     :doc: other
@@ -1276,6 +1324,7 @@ def full_restart(transition=False, label="_invoke_main_menu", target="_main_menu
 
     raise renpy.game.FullRestartException((transition, label, target))
 
+
 def utter_restart():
     """
     :undocumented: Used in the implementation of shift+R.
@@ -1286,6 +1335,7 @@ def utter_restart():
 
     raise renpy.game.UtterRestartException()
 
+
 def reload_script():
     """
     :doc: other
@@ -1295,6 +1345,7 @@ def reload_script():
     """
 
     renpy.game.call_in_new_context("_save_reload_game")
+
 
 def quit(relaunch=False, status=0): #@ReservedAssignment
     """
@@ -1312,6 +1363,7 @@ def quit(relaunch=False, status=0): #@ReservedAssignment
 
     raise renpy.game.QuitException(relaunch=relaunch, status=status)
 
+
 def jump(label):
     """
     :doc: se_jump
@@ -1322,6 +1374,7 @@ def jump(label):
 
     raise renpy.game.JumpException(label)
 
+
 def jump_out_of_context(label):
     """
     :doc: label
@@ -1331,6 +1384,7 @@ def jump_out_of_context(label):
     """
 
     raise renpy.game.JumpOutException(label)
+
 
 def call(label, *args, **kwargs):
     """
@@ -1343,6 +1397,7 @@ def call(label, *args, **kwargs):
 
     raise renpy.game.CallException(label, args, kwargs)
 
+
 def screenshot(filename):
     """
     :doc: other
@@ -1352,6 +1407,7 @@ def screenshot(filename):
 
     renpy.game.interface.save_screenshot(filename)
 
+@renpy_pure
 def version(tuple=False): #@ReservedAssignment
     """
     :doc: other
@@ -1367,6 +1423,7 @@ def version(tuple=False): #@ReservedAssignment
         return renpy.version_tuple
 
     return renpy.version
+
 
 def transition(trans, layer=None, always=False, force=False):
     """
@@ -1389,6 +1446,7 @@ def transition(trans, layer=None, always=False, force=False):
 
     renpy.game.interface.set_transition(trans, layer, force=force)
 
+
 def get_transition(layer=None):
     """
     :doc: other
@@ -1401,6 +1459,7 @@ def get_transition(layer=None):
 
     return renpy.game.interface.transition.get(layer, None)
 
+
 def clear_game_runtime():
     """
     :doc: other
@@ -1409,6 +1468,7 @@ def clear_game_runtime():
     """
 
     renpy.game.contexts[0].runtime = 0
+
 
 def get_game_runtime():
     """
@@ -1423,6 +1483,7 @@ def get_game_runtime():
 
     return renpy.game.contexts[0].runtime
 
+@renpy_pure
 def loadable(filename):
     """
     :doc: file
@@ -1434,6 +1495,8 @@ def loadable(filename):
 
     return renpy.loader.loadable(filename)
 
+
+@renpy_pure
 def exists(filename):
     """
     :doc: file_rare
@@ -1451,6 +1514,7 @@ def exists(filename):
         return True
     except:
         return False
+
 
 def restart_interaction():
     """
@@ -1470,6 +1534,7 @@ def restart_interaction():
     except:
         pass
 
+
 def context():
     """
     :doc: context
@@ -1483,6 +1548,7 @@ def context():
 
     return renpy.game.context().info
 
+
 def context_nesting_level():
     """
     :doc: context
@@ -1494,6 +1560,7 @@ def context_nesting_level():
 
     return len(renpy.game.contexts) - 1
 
+
 def music_start(filename, loops=True, fadeout=None, fadein=0):
     """
     Deprecated music start function, retained for compatibility. Use
@@ -1502,6 +1569,7 @@ def music_start(filename, loops=True, fadeout=None, fadein=0):
 
     renpy.audio.music.play(filename, loop=loops, fadeout=fadeout, fadein=fadein)
 
+
 def music_stop(fadeout=None):
     """
     Deprecated music start function, retained for compatibility. Use
@@ -1509,6 +1577,7 @@ def music_stop(fadeout=None):
     """
 
     renpy.audio.music.stop(fadeout=fadeout)
+
 
 def get_filename_line():
     """
@@ -1524,6 +1593,7 @@ def get_filename_line():
         return "unknown", 0
     else:
         return n.filename, n.linenumber
+
 
 # A file that log logs to.
 logfile = None
@@ -1557,6 +1627,7 @@ def log(msg):
     print >>logfile, textwrap.fill(msg).encode("utf-8")
     logfile.flush()
 
+
 def force_full_redraw():
     """
     :doc: other
@@ -1567,6 +1638,7 @@ def force_full_redraw():
 
     renpy.game.interface.full_redraw = True
 
+
 def do_reshow_say(who, what, interact=False):
 
     if who is not None:
@@ -1576,20 +1648,25 @@ def do_reshow_say(who, what, interact=False):
 
 curried_do_reshow_say = curry(do_reshow_say)
 
+
 def get_reshow_say(**kwargs):
     return curried_do_reshow_say(
         renpy.store._last_say_who,
         renpy.store._last_say_what,
         **kwargs)
 
+
 def reshow_say(**kwargs):
     get_reshow_say()(**kwargs)
+
 
 def current_interact_type():
     return getattr(renpy.game.context().info, "_current_interact_type", None)
 
+
 def last_interact_type():
     return getattr(renpy.game.context().info, "_last_interact_type", None)
+
 
 def dynamic(*vars): #@ReservedAssignment
     """
@@ -1606,6 +1683,7 @@ def dynamic(*vars): #@ReservedAssignment
 
     renpy.game.context().make_dynamic(vars)
 
+
 def context_dynamic(*vars): #@ReservedAssignment
     """
     :doc: other
@@ -1621,6 +1699,7 @@ def context_dynamic(*vars): #@ReservedAssignment
 
     renpy.game.context().make_dynamic(vars, context=True)
 
+
 def seen_label(label):
     """
     :doc: label
@@ -1631,6 +1710,7 @@ def seen_label(label):
     """
     return label in renpy.game.persistent._seen_ever  # @UndefinedVariable
 
+
 def seen_audio(filename):
     """
     :doc: audio
@@ -1639,6 +1719,7 @@ def seen_audio(filename):
     user's system.
     """
     return filename in renpy.game.persistent._seen_audio  # @UndefinedVariable
+
 
 def seen_image(name):
     """
@@ -1655,6 +1736,7 @@ def seen_image(name):
 
     return name in renpy.game.persistent._seen_images  # @UndefinedVariable
 
+
 def file(fn): #@ReservedAssignment
     """
     :doc: file
@@ -1669,6 +1751,8 @@ def file(fn): #@ReservedAssignment
     """
     return renpy.loader.load(fn)
 
+
+@renpy_pure
 def image_size(im):
     """
     :doc: file_rare
@@ -1691,6 +1775,7 @@ def image_size(im):
     surf = im.load()
     return surf.get_size()
 
+
 def get_at_list(name, layer='master'):
     """
     :undocumented:
@@ -1704,6 +1789,7 @@ def get_at_list(name, layer='master'):
     tag = name[0]
 
     return renpy.game.context().scene_lists.at_list[layer].get(tag, None)
+
 
 def show_layer_at(at_list, layer='master'):
     """
@@ -1720,6 +1806,7 @@ def show_layer_at(at_list, layer='master'):
 
 layer_at_list = show_layer_at
 
+
 def free_memory():
     """
     :doc: other
@@ -1730,6 +1817,7 @@ def free_memory():
     force_full_redraw()
     renpy.display.interface.kill_textures_and_surfaces()
 
+@renpy_pure
 def easy_displayable(d, none=False):
     """
     :undocumented:
@@ -1740,6 +1828,7 @@ def easy_displayable(d, none=False):
     else:
         return renpy.easy.displayable_or_none(d)
 
+
 def quit_event():
     """
     :doc: other
@@ -1749,6 +1838,7 @@ def quit_event():
     """
 
     renpy.game.interface.quit_event()
+
 
 def iconify():
     """
@@ -1766,6 +1856,10 @@ invoke_in_new_context = renpy.game.invoke_in_new_context
 curried_invoke_in_new_context = renpy.curry.curry(renpy.game.invoke_in_new_context)
 call_replay = renpy.game.call_replay
 
+renpy_pure("curried_call_in_new_context")
+renpy_pure("curried_invoke_in_new_context")
+
+
 # Error handling stuff.
 def _error(msg):
     raise Exception(msg)
@@ -1781,6 +1875,7 @@ def pop_error_handler():
 def error(msg):
     _error_handlers[-1](msg)
 
+
 def timeout(seconds):
     """
     :doc: udd_utility
@@ -1791,6 +1886,7 @@ def timeout(seconds):
     """
 
     renpy.game.interface.timeout(seconds)
+
 
 def end_interaction(value):
     """
@@ -1807,6 +1903,7 @@ def end_interaction(value):
         return
 
     raise renpy.display.core.EndInteraction(value)
+
 
 def scry():
     """
@@ -1827,8 +1924,10 @@ def scry():
     node = renpy.game.script.lookup(name)
     return node.scry()
 
+@renpy_pure
 def munged_filename():
     return renpy.parser.munge_filename(get_filename_line()[0])
+
 
 # Module loading stuff.
 
@@ -1878,6 +1977,7 @@ def load_module(name, **kwargs):
 
     renpy.config.locked = old_locked
 
+
 def load_string(s, filename="<string>"):
     """
     :doc: other
@@ -1919,6 +2019,7 @@ def load_string(s, filename="<string>"):
     finally:
         renpy.game.exception_info = old_exception_info
 
+
 def pop_call():
     """
     :doc: other
@@ -1935,6 +2036,7 @@ def pop_call():
 
 pop_return = pop_call
 
+
 def call_stack_depth():
     """
     :doc: other
@@ -1945,6 +2047,7 @@ def call_stack_depth():
     """
 
     return len(renpy.game.context().return_stack)
+
 
 def game_menu(screen=None):
     """
@@ -1957,6 +2060,7 @@ def game_menu(screen=None):
     else:
         call_in_new_context("_game_menu", screen)
 
+
 def shown_window():
     """
     :doc: other
@@ -1967,6 +2071,7 @@ def shown_window():
     """
 
     renpy.game.context().scene_lists.shown_window = True
+
 
 class placement(renpy.python.RevertableObject):
     def __init__(self, p):
@@ -2002,6 +2107,7 @@ def get_placement(d):
     p = d.get_placement()
 
     return placement(p)
+
 
 def get_image_bounds(tag, width=None, height=None, layer='master'):
     """
@@ -2040,8 +2146,10 @@ class Displayable(renpy.display.core.Displayable, renpy.python.RevertableObject)
 class Container(renpy.display.core.Displayable, renpy.python.RevertableObject):
     _list_type = renpy.python.RevertableList
 
+
 def get_roll_forward():
     return renpy.game.interface.shown_window
+
 
 def cache_pin(*args):
     """
@@ -2060,6 +2168,7 @@ def cache_pin(*args):
         new_pins.add(im)
 
     renpy.store._cache_pin_set = new_pins | renpy.store._cache_pin_set
+
 
 
 def cache_unpin(*args):
@@ -2130,6 +2239,7 @@ def start_predict_screen(_screen_name, *args, **kwargs):
     new_predict[_screen_name] = (args, kwargs)
     renpy.store._predict_screen = new_predict
 
+
 def stop_predict_screen(name):
     """
     :doc: cache
@@ -2140,7 +2250,6 @@ def stop_predict_screen(name):
     new_predict = renpy.python.RevertableDict(renpy.store._predict_screen)
     new_predict.pop(name)
     renpy.store._predict_screen = new_predict
-
 
 
 def call_screen(_screen_name, *args, **kwargs):
@@ -2186,7 +2295,7 @@ def call_screen(_screen_name, *args, **kwargs):
 
     return rv
 
-
+@renpy_pure
 def list_files(common=False):
     """
     :doc: file
@@ -2205,6 +2314,7 @@ def list_files(common=False):
         rv.append(fn)
 
     return rv
+
 
 def get_renderer_info():
     """
@@ -2230,6 +2340,7 @@ def get_renderer_info():
 
     return renpy.display.draw.info
 
+
 def display_reset():
     """
     :undocumented: Used internally.
@@ -2238,6 +2349,7 @@ def display_reset():
     """
 
     renpy.display.interface.display_reset = True
+
 
 def mode(mode):
     """
@@ -2268,6 +2380,7 @@ def mode(mode):
         modes.remove(mode)
     modes.insert(0, mode)
 
+
 def notify(message):
     """
     :doc: other
@@ -2287,6 +2400,8 @@ def notify(message):
     show_screen('notify', message=message)
     restart_interaction()
 
+
+@renpy_pure
 def variant(name):
     """
     :doc: screens
@@ -2373,6 +2488,7 @@ def get_side_image(prefix_tag, image_tag=None, not_showing=True, layer='master')
 
     return images.choose_image(prefix_tag, required, optional, None)
 
+
 def get_physical_size():
     """
     :doc: other
@@ -2381,6 +2497,7 @@ def get_physical_size():
     """
 
     return renpy.display.draw.get_physical_size()
+
 
 def set_physical_size(size):
     """
@@ -2396,6 +2513,8 @@ def set_physical_size(size):
         renpy.display.draw.quit()
         renpy.display.interface.set_mode(size)
 
+
+@renpy_pure
 def fsencode(s):
     """
     :doc: file_rare
@@ -2410,6 +2529,8 @@ def fsencode(s):
     fsencoding = sys.getfilesystemencoding() or "utf-8"
     return s.encode(fsencoding, "replace")
 
+
+@renpy_pure
 def fsdecode(s):
     """
     :doc: file_rare
@@ -2424,7 +2545,9 @@ def fsdecode(s):
     fsencoding = sys.getfilesystemencoding() or "utf-8"
     return s.decode(fsencoding)
 
+
 from renpy.editor import launch_editor #@UnusedImport
+
 
 def get_image_load_log(age=None):
     """
@@ -2459,6 +2582,7 @@ def get_image_load_log(age=None):
 
         yield i
 
+
 def end_replay():
     """
     :doc: replay
@@ -2480,6 +2604,7 @@ def save_persistent():
 
     renpy.persistent.update(True)
 
+
 def is_seen(ever=True):
     """
     :doc: other
@@ -2493,6 +2618,7 @@ def is_seen(ever=True):
 
     return renpy.game.context().seen_current(ever)
 
+
 def get_mouse_pos():
     """
     :doc: other
@@ -2502,6 +2628,7 @@ def get_mouse_pos():
     currently being touched, x and y are numbers, but not meaningful.
     """
     return renpy.display.draw.get_mouse_pos()
+
 
 def set_mouse_pos(x, y, duration=0):
     """
@@ -2517,6 +2644,7 @@ def set_mouse_pos(x, y, duration=0):
 
     renpy.display.interface.set_mouse_pos(x, y, duration)
 
+
 def set_autoreload(autoreload):
     """
     :doc: other
@@ -2528,6 +2656,7 @@ def set_autoreload(autoreload):
 
     renpy.autoreload = autoreload
 
+
 def get_autoreload():
     """
     :doc: other
@@ -2538,3 +2667,44 @@ def get_autoreload():
     return renpy.autoreload
 
 
+def count_dialogue_blocks():
+    """
+    :doc: other
+
+    Returns the number of dialogue blocks in the game's original language.
+    """
+
+    return renpy.game.script.translator.count_translates()
+
+
+def count_seen_dialogue_blocks():
+    """
+    :doc: other
+
+    Returns the number of dialogue blocks the user has seen in any play-through
+    of the current game.
+
+    This number may be larger than the result of :func:`renpy.count_dialogue_blocks`
+    when the script has changed and older dialogue blocks are no longer accessible.
+    """
+
+    return len(renpy.game.persistent._seen_translates) # @UndefinedVariable
+
+
+def substitute(s, scope=None, translate=True):
+    """
+    :doc: other
+
+    Applies translation and new-style formatting to the string `s`.
+
+    `scope`
+        If not None, a scope which is used in formatting, in addition to the
+        default store.
+
+    `translate`
+        Determines if translation occurs.
+
+    Returns the translated and formatted string.
+    """
+
+    return renpy.substitutions.substitute(s, scope=scope, translate=translate)[0]

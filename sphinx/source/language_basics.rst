@@ -170,10 +170,10 @@ Ren'Py statements are made of a few basic parts.
     A keyword is a word that must literally appear in the source
     code. They're used to introduce statements and properties.
 
-    Names begining with a single underscore (_) are reserved for
+    Names beginning with a single underscore (_) are reserved for
     Ren'Py internal use, unless otherwise documented. When a name
     begins with __ but doesn't end with __, it is changed to a
-    file-specfic version of that name.
+    file-specific version of that name.
 
 :dfn:`Name`
     A name begins with a letter or underscore, which is followed by
@@ -287,8 +287,7 @@ Here's a synopsis of python expressions.
 
 :dfn:`True, False, None`
     There are three special values. ``True`` is a true value, ``False`` is
-    a false value. ``None`` represents the absence of a value. For
-    example,
+    a false value. ``None`` represents the absence of a value.
 
 :dfn:`Tuple`
     Tuples are used to represent containers where the number of items
@@ -299,7 +298,7 @@ Here's a synopsis of python expressions.
     Tuples begin with a left-parenthesis ``(``, consist of zero or
     more comma-separated python expressions, and end with a
     right-parenthesis ``)``. As a special case, the one-item tuple
-    must have a parenthesis following the item. For example::
+    must have a comma following the item. For example::
 
         ()
         (1,)
@@ -378,7 +377,7 @@ This function:
 Since the functions ends with \*\*properties, it means that it can
 take :ref:`style properties <style-properties>` as additional keyword
 arguments. Other special entries are \*args, which means that it takes
-an arbitrary number of postional parameters, and \*\*kwargs, which means
+an arbitrary number of positional parameters, and \*\*kwargs, which means
 that the keyword arguments are described in the documentation.
 
 Python is a lot more powerful than we have space for in this manual.

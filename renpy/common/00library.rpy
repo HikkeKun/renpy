@@ -88,7 +88,7 @@ init -1700 python:
         if isinstance(who, NVLCharacter):
             nvl_show_core()
         else:
-            store.narrator("", interact=False)
+            store._narrator("", interact=False)
 
     config.empty_window = _default_empty_window
 
@@ -104,14 +104,12 @@ init -1700 python:
     def extend(what, interact=True):
         who = _last_say_who
 
-        if who is not None:
-            who = eval(who)
+        who = renpy.ast.eval_who(who)
 
         if who is None:
             who = narrator
-
-        if isinstance(who, basestring):
-            who = unknown.copy(who)
+        elif isinstance(who, basestring):
+            who = Character(who, kind=name_only)
 
         # This ensures extend works even with NVL mode.
         who.do_extend()

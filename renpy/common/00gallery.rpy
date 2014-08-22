@@ -136,7 +136,7 @@ init -1500 python:
     @renpy.pure
     class __GalleryAction(Action, FieldEquality):
 
-        identity_fields = [ "galley" ]
+        identity_fields = [ "gallery" ]
         equality_fields = [ "index" ]
 
         def __init__(self, gallery, index):
@@ -174,6 +174,10 @@ init -1500 python:
 
             If true, the gallery will display navigation and slideshow
             buttons on top of the images.
+
+            To customize the look of the navigation, you may override the
+            gallery_navigation screen. The default screen is defined in
+            common/00gallery.rpy
 
         .. attribute:: span_buttons
 
@@ -446,7 +450,7 @@ init -1500 python:
                 b = self.button_list[button]
                 i = b.images[image]
 
-                result = i.show((button, image) not in all_images, image, len(b.images))
+                result = i.show((button, image) not in unlocked_images, image, len(b.images))
 
                 # Default action for click.
 
@@ -464,7 +468,10 @@ init -1500 python:
                 else:
                     images = unlocked_images
 
-                index = images.index((button, image))
+                if (button, image) in images:
+                    index = images.index((button, image))
+                else:
+                    index = -1
 
                 if result.startswith('previous'):
                     index -= 1
@@ -562,17 +569,19 @@ init -1500:
         key "game_menu" action gallery.Return()
 
         if gallery.navigation:
+            use gallery_navigation
 
-            hbox:
-                spacing 20
+    screen gallery_navigation:
+        hbox:
+            spacing 20
 
-                style_group "gallery"
-                align (.98, .98)
+            style_group "gallery"
+            align (.98, .98)
 
-                textbutton _("prev") action gallery.Previous()
-                textbutton _("next") action gallery.Next()
-                textbutton _("slideshow") action gallery.ToggleSlideshow()
-                textbutton _("return") action gallery.Return()
+            textbutton _("prev") action gallery.Previous()
+            textbutton _("next") action gallery.Next()
+            textbutton _("slideshow") action gallery.ToggleSlideshow()
+            textbutton _("return") action gallery.Return()
 
     python:
         style.gallery = Style(style.default)

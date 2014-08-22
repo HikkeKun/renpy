@@ -67,6 +67,7 @@ Customizing Ren'Py
    screens
    screen_actions
    screen_special
+   screen_optimization
    config
    store_variables
 
@@ -121,6 +122,7 @@ End-User Documentation
 
    problems
    environment_variables
+   self_voicing
 
 Engine Developer Documentation
 ------------------------------

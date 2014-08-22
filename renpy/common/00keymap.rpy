@@ -39,6 +39,7 @@ init -1600 python:
         iconify = [ 'meta_m', 'alt_m' ],
         help = [ 'K_F1', 'meta_shift_/' ],
         choose_renderer = [ 'G' ],
+        self_voicing = [ 'v', 'V' ],
 
         # Say.
         rollforward = [ 'mousedown_5', 'K_PAGEDOWN' ],
@@ -101,7 +102,9 @@ init -1600 python:
         toggle_music = [ 'm' ],
 
         # Profile one frame
-        profile_once = [ 'K_F8' ]
+        profile_once = [ 'K_F8' ],
+
+
         )
 
     # Should we use the autoreload system?
@@ -258,6 +261,7 @@ init -1100 python:
         choose_renderer = renpy.curried_call_in_new_context("_choose_renderer"),
         console = _console.enter,
         profile_once = _profile_once,
+        self_voicing = Preference("self voicing", "toggle"),
         )
 
     config.underlay = [ km ]
@@ -325,29 +329,3 @@ label _load_reload_game:
         renpy.load("_reload-2")
 
     return
-
-screen _autoreload:
-
-    zorder 1000
-
-    if renpy.get_autoreload():
-
-        frame:
-            style_group ""
-            xalign 0.0
-            yalign 0.5
-
-            text _("Autoreload"):
-                vertical True
-
-init 1600 python hide:
-
-    def _show_autoreload_screen():
-        if config.developer:
-            renpy.show_screen("_autoreload")
-
-    config.start_callbacks.append(_show_autoreload_screen)
-
-
-
-

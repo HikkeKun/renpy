@@ -279,6 +279,9 @@ cdef class StyleCore:
         self.properties = [ ]
 
         if properties:
+            if not type(properties) is dict:
+                properties = dict(properties)
+
             self.properties.append(properties)
 
         self.parent = get_tuple_name(parent)
@@ -732,6 +735,7 @@ def rebuild():
     """
 
     build_styles()
+    renpy.display.screen.prepare_screens()
 
 def copy_properties(p):
     """

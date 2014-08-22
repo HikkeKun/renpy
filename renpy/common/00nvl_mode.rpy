@@ -109,6 +109,7 @@ init -1500 python:
 
         widget_properties = { }
         dialogue = [ ]
+        kwargs = { }
 
         for i, entry in enumerate(nvl_list):
             if not entry:
@@ -132,14 +133,21 @@ init -1500 python:
 
             dialogue.append((who, what, who_id, what_id, window_id))
 
-        return widget_properties, dialogue
+        show_args = dict(kwargs)
+        if show_args:
+            del show_args["who_args"]
+            del show_args["what_args"]
+            del show_args["window_args"]
+
+        return widget_properties, dialogue, show_args
 
     def __nvl_show_screen(screen_name, **scope):
         """
          Shows an nvl-mode screen. Returns the "what" widget.
          """
 
-        widget_properties, dialogue = __nvl_screen_dialogue()
+        widget_properties, dialogue, show_args = __nvl_screen_dialogue()
+        scope.update(show_args)
 
         renpy.show_screen(screen_name, _layer=config.nvl_layer, _transient=True, _widget_properties=widget_properties, dialogue=dialogue, **scope)
         renpy.shown_window()
@@ -169,6 +177,8 @@ init -1500 python:
                 continue
 
             who, what, kw = i
+            kw = dict(kw)
+            kw.setdefault("show_say_vbox_properties",  { 'box_layout' : 'horizontal' }),
             rv = config.nvl_show_display_say(who, what, variant=nvl_variant, **kw)
 
         ui.close()
@@ -243,9 +253,9 @@ init -1500 python:
                 store.nvl_list = [ ]
 
             kwargs = self.show_args.copy()
-            kwargs["what_args"] = self.what_args
-            kwargs["who_args"] = self.who_args
-            kwargs["window_args"] = self.window_args
+            kwargs["what_args"] = dict(self.what_args)
+            kwargs["who_args"] = dict(self.who_args)
+            kwargs["window_args"] = dict(self.window_args)
 
             store.nvl_list.append((who, what, kwargs))
 
@@ -275,6 +285,9 @@ init -1500 python:
                 **display_args)
 
         def do_done(self, who, what):
+            nvl_list[-1][2]["what_args"]["alt"] = ""
+            nvl_list[-1][2]["who_args"]["alt"] = ""
+
             if self.clear:
                 nvl_clear()
 
@@ -284,7 +297,6 @@ init -1500 python:
 
     # The default NVLCharacter.
     nvl = NVLCharacter(
-        show_say_vbox_properties={ 'box_layout' : 'horizontal' },
         who_style='nvl_label',
         what_style='nvl_dialogue',
         window_style='nvl_entry',
@@ -316,13 +328,15 @@ init -1500 python:
 
         if screen is not None:
 
-            widget_properties, dialogue = __nvl_screen_dialogue()
+            widget_properties, dialogue, show_args = __nvl_screen_dialogue()
+            scope = show_args.copy()
+            scope["dialogue"] = dialogue
 
             return renpy.display_menu(
                 items,
                 widget_properties=widget_properties,
                 screen=screen,
-                scope={ "dialogue" : dialogue },
+                scope=scope,
                 window_style=__s(style.nvl_menu_window),
                 choice_style=__s(style.nvl_menu_choice),
                 choice_chosen_style=__s(style.nvl_menu_choice_chosen),
@@ -345,6 +359,8 @@ init -1500 python:
                 continue
 
             who, what, kw = i
+            kw = dict(kw)
+            kw.setdefault("show_say_vbox_properties",  { 'box_layout' : 'horizontal' }),
             rv = renpy.show_display_say(who, what, **kw)
 
         renpy.display_menu(items, interact=False,

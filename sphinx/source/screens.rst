@@ -62,7 +62,7 @@ statements.
 
 Here's an example of a screen.::
 
-    screen say:
+    screen say(who, what):
         window id "window":
             vbox:
                 spacing 10
@@ -72,7 +72,8 @@ Here's an example of a screen.::
 
 The first line of this is a screen statement, a Ren'Py language
 statement that's used to declare a screen. The name of the screen is
-`say`, so this is the screen that's used to display dialogue.
+`say`, so this is the screen that's used to display dialogue. It takes
+two parameters, `who` and `what`.
 
 The screen contains a window, which has been given the id of
 "window". This window contains a vertical box, and the spacing inside
@@ -134,7 +135,7 @@ expression. It takes the following properties:
 
 ::
 
-   screen hello_world:
+   screen hello_world():
         tag example
         zorder 1
         modal False
@@ -235,7 +236,7 @@ This does not take any children.
 
 ::
 
-    screen add_test:
+    screen add_test():
         add "logo.png" xalign 1.0 yalign 0.0
 
 
@@ -279,7 +280,7 @@ This does not take children.
 
 ::
 
-    screen volume_controls:
+    screen volume_controls():
         frame:
             has vbox
 
@@ -377,7 +378,7 @@ a fixed is created to contain them.
 
 ::
 
-    screen test_frame:
+    screen test_frame():
         frame:
             xpadding 10
             ypadding 10
@@ -446,7 +447,7 @@ UI displayable children are added to the box.
 
 ::
 
-   screen hbox_text:
+   screen hbox_text():
        hbox:
             text "Left"
             text "Right"
@@ -512,7 +513,7 @@ This takes no children.
 
 ::
 
-    screen gui_game_menu:
+    screen gui_game_menu():
          vbox xalign 1.0 yalign 1.0:
               imagebutton auto "save_%s.png" action ShowMenu('save')
               imagebutton auto "prefs_%s.png" action ShowMenu('preferences')
@@ -568,7 +569,7 @@ This does not take any children.
 
 ::
 
-    screen input_screen:
+    screen input_screen():
         window:
             has vbox
 
@@ -597,7 +598,7 @@ It takes no children.
 
 ::
 
-    screen keymap_screen:
+    screen keymap_screen():
         key "game_menu" action ShowMenu('save')
         key "p" action ShowMenu('preferences')
         key "s" action Screenshot()
@@ -634,7 +635,7 @@ It does not take children.
 
 ::
 
-    screen display_preference:
+    screen display_preference():
         frame:
             has vbox
 
@@ -667,7 +668,7 @@ It does not take children.
 
 ::
 
-    screen text_box:
+    screen text_box():
         vbox:
              text "The title."
              null height 20
@@ -710,13 +711,13 @@ take up the entire screen, a less useful behavior.
 
 ::
 
-    screen button_overlay:
+    screen button_overlay():
         mousearea:
             area (0, 0, 1.0, 100)
             hovered Show("buttons", transition=dissolve)
             unhovered Hide("buttons", transition=dissolve)
 
-    screen buttons:
+    screen buttons():
         hbox:
             textbutton "Save" action ShowMenu("save")
             textbutton "Prefs" action ShowMenu("preferences")
@@ -762,7 +763,7 @@ the same number of children as there are entries in the places list.
 
 ::
 
-    screen side_test:
+    screen side_test():
          side "c tl br":
               text "Center"
               text "Top-Left"
@@ -784,7 +785,7 @@ It does not take children.
 
 ::
 
-    screen hello_world:
+    screen hello_world():
         text "Hello, World." size 40
 
 .. _sl-textbutton:
@@ -826,7 +827,7 @@ It does not take children.
 
 ::
 
-    screen textbutton_screen:
+    screen textbutton_screen():
         vbox:
             textbutton "Wine" action Jump("wine")
             textbutton "Women" action Jump("women")
@@ -852,7 +853,7 @@ It takes no children.
 
 ::
 
-    screen timer_test:
+    screen timer_test():
         vbox:
              textbutton "Yes." action Jump("yes")
              textbutton "No." action Jump("no")
@@ -883,7 +884,7 @@ as `bar`.
 
 ::
 
-    screen volume_controls:
+    screen volume_controls():
          frame:
              has hbox
 
@@ -909,7 +910,7 @@ UI displayable children are added to the box.
 
 ::
 
-    screen vbox_test:
+    screen vbox_test():
         vbox:
              text "Top."
              text "Bottom."
@@ -969,7 +970,7 @@ following properties:
     giving the number of pixels, or a float giving a fraction of the
     possible offset.
 `scrollbars`
-    If not None, scrollbars are added allong with this viewport.
+    If not None, scrollbars are added along with this viewport.
     This works by creating a side layout, and placing the created
     viewport in the center of the side. If `scrollbars` is "horizontal",
     a horizontal scrollbar is placed beneath the viewport. If `scrollbars`
@@ -995,7 +996,7 @@ id.
 
 ::
 
-    screen viewport_example:
+    screen viewport_example():
         side "c b r":
              area (100, 100, 600, 400)
 
@@ -1025,7 +1026,7 @@ a fixed is created to contain them.
 
 ::
 
-    screen say:
+    screen say(who, what):
         window id "window"
             vbox:
                 spacing 10
@@ -1047,7 +1048,7 @@ Here's an example of a preferences screen that uses imagemaps.
 
 ::
 
-    screen preferences:
+    screen preferences():
 
         tag menu
         use navigation
@@ -1055,15 +1056,15 @@ Here's an example of a preferences screen that uses imagemaps.
         imagemap:
             auto "gui_set/gui_prefs_%s.png"
 
-            hotspot (740, 232, 75, 73) clicked Preference("display", "fullscreen")
-            hotspot (832, 232, 75, 73) clicked Preference("display", "window")
-            hotspot (1074, 232, 75, 73) clicked Preference("transitions", "all")
-            hotspot (1166, 232, 75, 73) clicked Preference("transitions", "none")
+            hotspot (740, 232, 75, 73) action Preference("display", "fullscreen") alt _("Display Fullscreen")
+            hotspot (832, 232, 75, 73) action Preference("display", "window") alt _("Display Window")
+            hotspot (1074, 232, 75, 73) action Preference("transitions", "all") alt _("Transitions All")
+            hotspot (1166, 232, 75, 73) action  Preference("transitions", "none") alt _("Transitions None")
 
-            hotbar (736, 415, 161, 20) value Preference("music volume")
-            hotbar (1070, 415, 161, 20) value Preference("sound volume")
-            hotbar (667, 535, 161, 20) value Preference("voice volume")
-            hotbar (1001, 535, 161, 20) value Preference("text speed")
+            hotbar (736, 415, 161, 20) value Preference("music volume") alt _("Music Volume")
+            hotbar (1070, 415, 161, 20) value Preference("sound volume") alt _("Sound Volume")
+            hotbar (667, 535, 161, 20) value Preference("voice volume") alt _("Voice Volume")
+            hotbar (1001, 535, 161, 20) value Preference("text speed") alt _("Text Speed")
 
 
 .. _sl-imagemap:
@@ -1157,8 +1158,10 @@ It also takes:
 
 A hotspot creates a fixed, allowing children to be added to it. The
 fixed has an area that is the same size as the hotspot, meaning that
-the children will be positioned relative to the hotpsot.
+the children will be positioned relative to the hotspot.
 
+Hotspots should be given the ``alt`` style property to allow Ren'Py's
+self-voicing feature to work.
 
 .. _sl-hotbar:
 
@@ -1189,6 +1192,10 @@ function takes:
 
 This does not take children.
 
+Hotbars should be given the ``alt`` style property to allow Ren'Py's
+self-voicing feature to work.
+
+
 Advanced Displayables
 =====================
 
@@ -1216,7 +1223,7 @@ The advanced displayable statements are:
 Has Statement
 =============
 
-The has statment allows you to specify a container to use, instead of
+The has statement allows you to specify a container to use, instead of
 fixed, for statements that take only one child. The has statement
 may only be used inside a statement that takes one child. The keyword
 ``has`` is followed (on the same line) by another statement, which
@@ -1247,7 +1254,7 @@ container.
 
 ::
 
-   screen volume_controls:
+   screen volume_controls():
         frame:
             has vbox
 
@@ -1268,15 +1275,24 @@ events occur, and executing arbitrary python code.
 Default
 -------
 
+The default statement sets the default value of a variable when the
+screen is first one. :func:`SetScreenVariable`
+
 The default statement sets the default value of a variable, if it is not
 passed as an argument to the screen, or inherited from a screen that calls
 us using the use statement.
 
 ::
 
-    screen message:
-         default message = "No message defined."
-         text message
+    screen scheduler():
+        default club = None
+        vbox:
+             text "What would you like to do?"
+             textbutton "Art Club" action SetScreenVariable("club", "art")
+             textbutton "Writing Club" action SetScreenVariable("club", "writing")
+
+             if club:
+                 textbutton "Select" action Return(club)
 
 
 .. _sl-for:
@@ -1284,7 +1300,7 @@ us using the use statement.
 For
 ---
 
-The for statement is similar to the Python for statment, except that
+The for statement is similar to the Python for statement, except that
 it does not support the else clause. It supports assignment to
 (optionally nested) tuple patterns, as well as variables.
 
@@ -1292,7 +1308,7 @@ it does not support the else clause. It supports assignment to
 
     $ numerals = [ 'I', 'II', 'III', 'IV', 'V' ]
 
-    screen five_buttons:
+    screen five_buttons():
         vbox:
             for i, numeral in enumerate(numerals):
                 textbutton numeral action Return(i + 1)
@@ -1308,7 +1324,7 @@ statement. It supports the if, elif, and else clauses.
 
 ::
 
-    screen skipping_indicator:
+    screen skipping_indicator():
         if config.skipping:
              text "Skipping."
         else:
@@ -1333,7 +1349,7 @@ occurs.
 
 ::
 
-    screen preferences:
+    screen preferences():
         frame:
             has hbox
 
@@ -1354,6 +1370,10 @@ The use statement allows a screen to include another. The use
 statement takes the name of the screen to use. This can optionally be
 followed by an argument list, in parenthesis.
 
+If the used screen include parameters, its scope is initialized to the
+result of assigning the arguments to those parameters. Otherwise, it
+is passed the scope of the current screen, updated with any
+
 The scope of the included code includes the scope of the current
 statement's code, updated by assinging the parameters their new
 values.
@@ -1372,7 +1392,7 @@ values.
                 text FileSaveName(slot)
 
 
-     screen save:
+     screen save():
          grid 2 5:
              for i in range(1, 11):
                   use file_slot(i)
@@ -1531,7 +1551,7 @@ and choosing the entries that apply to the current platform.
    be used instead of ``"tablet"``.)
 
 ``"phone"``
-   Defined on touchscren-based devices where the diagonal size of
+   Defined on touchscreen-based devices where the diagonal size of
    the screen is less than 6 inches. On such a small device, it's
    important to make buttons large enough a user can easily choose
    them. (In general, ``"small"`` should be used instead of ``"phone"``.)
@@ -1562,7 +1582,7 @@ An example of defining a screen variant is:
 
    # A variant hello_world screen, used on small touch-based
    # devices.
-   screen hello_world:
+   screen hello_world():
         tag example
         zorder 1
         modal False

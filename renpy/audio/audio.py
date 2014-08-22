@@ -712,7 +712,7 @@ def register_channel(name, mixer=None, loop=None, stop_on_mute=True, tight=False
         If true, music on the channel is stopped when the channel is muted.
 
     `tight`
-        If true, sounds will loop even when fadeout is occuring. This should
+        If true, sounds will loop even when fadeout is occurring. This should
         be set to True for a sound effects or seamless music channel, and False
         if the music fades out on its own.
 
@@ -827,6 +827,7 @@ def quit(): #@ReservedAssignment
 # The last-set pcm volume.
 pcm_volume = None
 
+old_emphasized = False
 
 def periodic():
     """
@@ -837,11 +838,43 @@ def periodic():
     """
 
     global pcm_volume
+    global old_emphasized
 
     if not pcm_ok:
         return False
 
+
     try:
+
+        # A list of emphasized channels.
+        emphasize_channels = [ ]
+        emphasized = False
+
+        for i in renpy.config.emphasize_audio_channels:
+            c = get_channel(i)
+            emphasize_channels.append(c)
+
+            if c.get_playing():
+                emphasized = True
+
+        if emphasized and not old_emphasized:
+            vol = renpy.config.emphasize_audio_volume
+        elif not emphasized and old_emphasized:
+            vol = 1.0
+        else:
+            vol = None
+
+        if not renpy.game.preferences.emphasize_audio:
+            emphasized = False
+
+        old_emphasized = emphasized
+
+        if vol is not None:
+            for c in all_channels:
+                if c in emphasize_channels:
+                    continue
+
+                c.set_secondary_volume(vol, renpy.config.emphasize_audio_time)
 
         for c in all_channels:
             c.periodic()

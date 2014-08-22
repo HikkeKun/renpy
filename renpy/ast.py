@@ -72,11 +72,15 @@ class ParameterInfo(object):
         self.extrakw = extrakw
 
 
-    def apply(self, args, kwargs):
+    def apply(self, args, kwargs, ignore_errors=False):
         """
         Applies `args` and `kwargs` to these parameters. Returns
         a dictionary that can be used to update an enclosing
         scope.
+
+        `ignore_errors`
+            If true, errors will be ignored, and this function will do the
+            best job it can.
         """
 
         values = { }
@@ -91,7 +95,8 @@ class ParameterInfo(object):
 
         for name, value in zip(self.positional, args):
             if name in values:
-                raise Exception("Parameter %s has two values." % name)
+                if not ignore_errors:
+                    raise Exception("Parameter %s has two values." % name)
 
             values[name] = value
 
@@ -99,7 +104,8 @@ class ParameterInfo(object):
 
         for name, value in kwargs.iteritems():
             if name in values:
-                raise Exception("Parameter %s has two values." % name)
+                if not ignore_errors:
+                    raise Exception("Parameter %s has two values." % name)
 
             values[name] = value
 
@@ -107,7 +113,8 @@ class ParameterInfo(object):
 
             if name not in values:
                 if default is None:
-                    raise Exception("Required parameter %s has no value." % name)
+                    if not ignore_errors:
+                        raise Exception("Required parameter %s has no value." % name)
                 else:
                     rv[name] = renpy.python.py_eval(default)
 
@@ -120,18 +127,17 @@ class ParameterInfo(object):
 
         if self.extrapos:
             rv[self.extrapos] = extrapos
-        elif extrapos:
+        elif extrapos and not ignore_errors:
             raise Exception("Too many arguments in call (expected %d, got %d)." % (len(self.positional), len(args)))
 
         if self.extrakw:
             rv[self.extrakw] = values
-        else:
-            if values:
-                raise Exception("Unknown keyword arguments: %s" % ( ", ".join(values.keys())))
+        elif values and not ignore_errors:
+            raise Exception("Unknown keyword arguments: %s" % ( ", ".join(values.keys())))
 
         return rv
 
-def apply_arguments(parameters, args, kwargs):
+def apply_arguments(parameters, args, kwargs, ignore_errors=False):
 
     if parameters is None:
         if args or kwargs:
@@ -139,7 +145,7 @@ def apply_arguments(parameters, args, kwargs):
         else:
             return { }
 
-    return parameters.apply(args, kwargs)
+    return parameters.apply(args, kwargs, ignore_errors)
 
 
 class ArgumentInfo(object):
@@ -452,6 +458,27 @@ def say_menu_with(expression, callback):
         # renpy.game.interface.set_transition(what)
         callback(what)
 
+def eval_who(who, fast=None):
+    """
+    Evaluates the `who` parameter to a say statement.
+    """
+
+    if who is None:
+        return None
+
+    if fast is None:
+        fast = bool(re.match(renpy.parser.word_regexp + "$", who))
+
+    if fast:
+        rv = renpy.python.store_dicts['store'].get(who, None)
+
+        if rv is None:
+            raise Exception("Sayer '%s' is not defined." % who.encode("utf-8"))
+
+        return rv
+
+    return renpy.python.py_eval(who)
+
 class Say(Node):
 
     __slots__ = [
@@ -528,15 +555,7 @@ class Say(Node):
 
             renpy.game.context().say_attributes = self.attributes
 
-            if self.who is not None:
-                if self.who_fast:
-                    who = renpy.python.store_dicts['store'].get(self.who, None)
-                    if who is None:
-                        raise Exception("Sayer '%s' is not defined." % self.who.encode("utf-8"))
-                else:
-                    who = renpy.python.py_eval(self.who)
-            else:
-                who = None
+            who = eval_who(self.who, self.who_fast)
 
             if not (
                 (who is None) or
@@ -570,13 +589,7 @@ class Say(Node):
 
             renpy.game.context().say_attributes = self.attributes
 
-            if self.who is not None:
-                if self.who_fast:
-                    who = getattr(renpy.store, self.who)
-                else:
-                    who = renpy.python.py_eval(self.who)
-            else:
-                who = None
+            who = eval_who(self.who, self.who_fast)
 
             def predict_with(trans):
                 renpy.display.predict.displayable(trans(old_widget=None, new_widget=None))
@@ -891,6 +904,7 @@ class Transform(Node):
 
         trans = renpy.display.motion.ATLTransform(self.atl, parameters=parameters)
         renpy.dump.transforms.append((self.varname, self.filename, self.linenumber))
+        renpy.exports.pure(self.varname)
         setattr(renpy.store, self.varname, trans)
 
 
@@ -1666,7 +1680,7 @@ class Define(Node):
 
         value = renpy.python.py_eval_bytecode(self.code.bytecode)
         renpy.dump.definitions.append((self.varname, self.filename, self.linenumber))
-        renpy.exports.const(self.varname)
+        renpy.exports.pure(self.varname)
         renpy.python.store_dicts["store"][self.varname] = value
 
 
@@ -1695,7 +1709,7 @@ class Screen(Node):
         next_node(self.next)
         statement_name("screen")
 
-        self.screen.define()
+        self.screen.define((self.filename, self.linenumber))
         renpy.dump.screens.append((self.screen.name, self.filename, self.linenumber))
 
 
@@ -1744,6 +1758,8 @@ class Translate(Node):
         if self.language is not None:
             next_node(self.next)
             raise Exception("Translation nodes cannot be run directly.")
+
+        renpy.game.persistent._seen_translates.add(self.identifier) # @UndefinedVariable
 
         next_node(renpy.game.script.translator.lookup_translate(self.identifier))
 

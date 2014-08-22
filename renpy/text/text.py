@@ -592,10 +592,8 @@ class Layout(object):
             l, y = textsupport.place_vertical(line_glyphs, y, style.line_spacing, style.line_leading)
             lines.extend(l)
 
-            # Figure out the indent of the next line.
-            if style.newline_indent:
-                first_indent = style.first_indent
-            else:
+            # Figure out the indent of the next paragraph.
+            if not style.newline_indent:
                 first_indent = rest_indent
 
         if style.line_spacing < 0:
@@ -1128,6 +1126,8 @@ class Text(renpy.display.core.Displayable):
 
     __version__ = 4
 
+    uses_scope = True
+
     def after_upgrade(self, version):
 
         if version < 3:
@@ -1173,7 +1173,7 @@ class Text(renpy.display.core.Displayable):
         # Sets the text we're showing, and performs substitutions.
         self.set_text(text, scope, substitute)
 
-        if renpy.game.less_updates:
+        if renpy.game.less_updates or renpy.game.preferences.self_voicing:
             slow = False
 
         # True if we're using slow text mode.
@@ -1214,14 +1214,14 @@ class Text(renpy.display.core.Displayable):
         s = s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
         return u"Text \"{}\"".format(s)
 
-    def _scope(self, scope):
+    def _scope(self, scope, update=True):
         """
         Called to update the scope, when necessary.
         """
 
-        self.set_text(self.text_parameter, scope, self.substitute)
+        return self.set_text(self.text_parameter, scope, self.substitute, update)
 
-    def set_text(self, text, scope=None, substitute=False):
+    def set_text(self, text, scope=None, substitute=False, update=True):
 
         old_text = self.text
 
@@ -1231,23 +1231,36 @@ class Text(renpy.display.core.Displayable):
         # The text parameter, before substitutions were performed.
         self.text_parameter = text
 
-        self.text = [ ]
+        new_text = [ ]
+        uses_scope = False
 
         # Perform substitution as necessary.
         for i in text:
             if isinstance(i, basestring):
                 if substitute is not False:
-                    i = renpy.substitutions.substitute(i, scope, substitute)
+                    i, did_sub = renpy.substitutions.substitute(i, scope, substitute)
+                    uses_scope = uses_scope or did_sub
 
                 i = unicode(i)
 
-            self.text.append(i)
+            new_text.append(i)
 
-        if not self.dirty and self.text != old_text:
-            self.dirty = True
+        self.uses_scope = uses_scope
 
-            if old_text is not None:
-                renpy.display.render.redraw(self, 0)
+        if new_text == old_text:
+            return False
+
+        if update:
+
+            self.text = new_text
+
+            if not self.dirty:
+                self.dirty = True
+
+                if old_text is not None:
+                    renpy.display.render.redraw(self, 0)
+
+        return True
 
     def set_ctc(self, ctc):
         self.ctc = ctc
@@ -1318,6 +1331,27 @@ class Text(renpy.display.core.Displayable):
             self.update()
 
         return list(self.displayables)
+
+    def _tts(self):
+
+        if self.style.alt is not None:
+            return self.style.alt
+
+        rv = [ ]
+
+        for i in self.text:
+
+            if not isinstance(i, basestring):
+                continue
+
+            rv.append(i)
+
+        rv = "".join(rv)
+        _, _, rv = rv.rpartition("{fast}")
+
+        return renpy.translation.notags_filter(rv)
+
+    _tts_all = _tts
 
     def kill_layout(self):
         """

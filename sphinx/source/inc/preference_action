@@ -2,7 +2,7 @@
 
 .. function:: Preference(name, value=None)
     
-    This constructs the approprate action or value from a preference.
+    This constructs the appropriate action or value from a preference.
     The preference name should be the name given in the standard
     menus, while the value should be either the name of a choice,
     "toggle" to cycle through choices, a specific value, or left off
@@ -77,6 +77,14 @@
     * Preference("music volume", 0.5) - Set the music volume.
     * Preference("sound volume", 0.5) - Set the sound volume.
     * Preference("voice volume", 0.5) - Set the voice volume.
+    
+    * Preference("emphasize audio", "enable") - Emphasize the audio channels found in :var:`config.emphasize_audio_channels`.
+    * Preference("emphasize audio", "disable") - Do not emphasize audio channels.
+    * Preference("emphasize audio", "toggle") - Toggle emphasize audio.
+    
+    * Preference("self voicing", "enable") - Enables self-voicing.
+    * Preference("self voicing", "disable") - Disable self-voicing.
+    * Preference("self voicing", "toggle") - Toggles self-voicing.
     
     Values that can be used with bars are:
     

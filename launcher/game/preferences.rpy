@@ -38,7 +38,9 @@ init python:
         rv = [ ( "English", None) ]
 
         for i in languages:
-            rv.append((i.title(), i))
+            rv.append((i.replace("_", " ").title(), i))
+
+        rv.sort()
 
         return rv
 
@@ -50,6 +52,7 @@ screen preferences:
     frame:
         style_group "l"
         style "l_root"
+        alt "Preferences"
 
         window:
 
@@ -83,10 +86,13 @@ screen preferences:
 
                         frame style "l_indent":
                             if persistent.projects_directory:
-                                textbutton _("[persistent.projects_directory!q]") action Jump("projects_directory_preference")
+                                textbutton _("[persistent.projects_directory!q]"):
+                                    action Jump("projects_directory_preference")
+                                    alt _("Projects directory: [text]")
                             else:
-                                textbutton _("Not Set") action Jump("projects_directory_preference")
-
+                                textbutton _("Not Set"):
+                                    action Jump("projects_directory_preference")
+                                    alt _("Projects directory: [text]")
 
 
                     add SPACER
@@ -105,9 +111,9 @@ screen preferences:
 
                         frame style "l_indent":
                             if persistent.editor:
-                                textbutton persistent.editor action Jump("editor_preference")
+                                textbutton persistent.editor action Jump("editor_preference") alt _("Text editor: [text]")
                             else:
-                                textbutton _("Not Set") action Jump("editor_preference")
+                                textbutton _("Not Set") action Jump("editor_preference") alt _("Text editor: [text]")
 
                     add SPACER
 
@@ -162,6 +168,7 @@ screen preferences:
 
                         textbutton _("Hardware rendering") style "l_checkbox" action ToggleField(persistent, "gl_enable")
                         textbutton _("Show templates") style "l_checkbox" action ToggleField(persistent, "show_templates")
+                        textbutton _("Large fonts") style "l_checkbox" action [ ToggleField(persistent, "large_print"), renpy.utter_restart ]
 
                         if renpy.windows:
                             textbutton _("Console output") style "l_checkbox" action ToggleField(persistent, "windows_console")
@@ -203,10 +210,16 @@ screen preferences:
 
                             add HALF_SPACER
 
-                            # frame style "l_indent":
+                            viewport:
+                                scrollbars "vertical"
+                                mousewheel True
 
-                            for tlname, tlvalue in translations:
-                                textbutton tlname action Language(tlvalue) style "l_list"
+                                has vbox
+
+                                # frame style "l_indent":
+
+                                for tlname, tlvalue in translations:
+                                    textbutton tlname action Language(tlvalue) style "l_list"
 
 
     textbutton _("Back") action Jump("front_page") style "l_left_button"

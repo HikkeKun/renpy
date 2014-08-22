@@ -201,7 +201,7 @@ init python:
             self.log(prompt)
             interface.info(prompt, label="android")
 
-        def yes_thread(self):
+        def run_yes_thread(self):
             import time
 
             try:
@@ -246,7 +246,7 @@ init python:
                 if yes:
                     import threading
                     self.run_yes = True
-                    self.yes_thread = threading.Thread(target=self.yes_thread)
+                    self.yes_thread = threading.Thread(target=self.run_yes_thread)
                     self.yes_thread.daemon = True
                     self.yes_thread.start()
 
@@ -386,7 +386,7 @@ init python:
             reporter = distribute.TextReporter()
             rapt_interface = rapt.interface.Interface()
 
-        distribute.Distributor(project.current,
+        distribute.Distributor(p,
             reporter=reporter,
             packages=[ 'android' ],
             build_update=False,

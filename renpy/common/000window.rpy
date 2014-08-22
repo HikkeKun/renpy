@@ -35,31 +35,39 @@ init -1200 python:
 
     _window_auto = False
 
-    def _window_show(trans=None):
+    def _window_show(trans=False):
         if store._window:
             return
 
-        if trans is None:
+        if trans is False:
             trans = config.window_show_transition
 
         if _preferences.show_empty_window:
             renpy.with_statement(None)
             store._window = True
-            renpy.with_statement(trans)
+            try:
+                _voice.ignore_interaction = True
+                renpy.with_statement(trans)
+            finally:
+                _voice.ignore_interaction = False
         else:
             store._window = True
 
-    def _window_hide(trans=None):
+    def _window_hide(trans=False):
         if not store._window:
             return
 
-        if trans is None:
+        if trans is False:
             trans = config.window_hide_transition
 
         if _preferences.show_empty_window:
             renpy.with_statement(None)
             store._window = False
-            renpy.with_statement(trans)
+            try:
+                _voice.ignore_interaction = True
+                renpy.with_statement(trans)
+            finally:
+                _voice.ignore_interaction = False
         else:
             store._window = False
 
@@ -97,7 +105,7 @@ python early hide:
         if p is not None:
             trans = eval(p)
         else:
-            trans = None
+            trans = False
 
         _window_show(trans)
 
@@ -107,7 +115,7 @@ python early hide:
         if p is not None:
             trans = eval(p)
         else:
-            trans = None
+            trans = False
 
         _window_hide(trans)
 
